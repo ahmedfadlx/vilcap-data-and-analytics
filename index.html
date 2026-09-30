@@ -1,0 +1,1847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How Village Capital's program and investment data is created, where it gets lost today, and what changes with a dedicated data and analytics function.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2300354E'/%3E%3Cpath d='M8 22h4V14H8zM14 22h4V9h-4zM20 22h4v-5h-4z' fill='%23FEC673'/%3E%3C/svg%3E">
+<title>VilCap Data Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Yeseva+One&display=swap">
+<style>
+body{margin:0} img{max-width:100%} [hidden]{display:none!important}
+/* Layout: navy title band with moving contour lines (from the VilCap deck), then one reading column (max 1160px) under a sticky section bar; the stage map, history pipeline and dashboard are working surfaces. */
+:root{
+  --bg:#F7F8F9; --surface:#FFFFFF; --surface-2:#F3F5F7; --sand:#F0EBE2; --sand-2:#E6DED0;
+  --ink:#0D2B3C; --ink-2:#3F5667; --ink-3:#667A88; --head:#00354E;
+  --line:#DFE4E9; --line-2:#C6D0D8; --qshade:rgba(0,53,78,.035);
+  --accent:#35599F; --accent-fill:#4369B2; --on-accent:#FFFFFF; --wash:#E9EEF8;
+  --amber:#FEC673; --amber-ink:#7A5200;
+  --band:#00354E; --band-ink:#FFFFFF; --band-ink-2:#C5D5E0;
+  --s1:#4369b2; --s2:#e39b2d; --s3:#12876f; --s4:#9a5fb5;
+  --q1:#6d8fd6; --q2:#4369b2; --q3:#1f3a5f;
+  --good-ink:#1B6E3A; --warn-ink:#8A5300; --bad-ink:#B42E2E;
+  --shadow:0 1px 2px rgba(0,53,78,.06), 0 10px 28px rgba(0,53,78,.07);
+  --f-display:"Yeseva One", Georgia, "Times New Roman", serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1B26; --surface:#0F2635; --surface-2:#132D3E; --sand:#18323F; --sand-2:#21404F;
+    --ink:#E4ECF1; --ink-2:#A7B8C4; --ink-3:#7F92A0; --head:#F2F6F9;
+    --line:#1E3A4B; --line-2:#2C4B5D; --qshade:rgba(255,255,255,.03);
+    --accent:#8FAAE6; --accent-fill:#6d8fd6; --on-accent:#0A1B26; --wash:#16304D;
+    --amber:#FEC673; --amber-ink:#F4C46E;
+    --band:#0E3144; --band-ink:#FFFFFF; --band-ink-2:#B4C7D4;
+    --s1:#6d8fd6; --s2:#c07c14; --s3:#22a088; --s4:#a57ccc;
+    --q1:#4f76c4; --q2:#9eb1d6; --q3:#c9d5ec;
+    --good-ink:#5CC98C; --warn-ink:#EDB14A; --bad-ink:#F2837A;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.3);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1B26; --surface:#0F2635; --surface-2:#132D3E; --sand:#18323F; --sand-2:#21404F;
+  --ink:#E4ECF1; --ink-2:#A7B8C4; --ink-3:#7F92A0; --head:#F2F6F9;
+  --line:#1E3A4B; --line-2:#2C4B5D; --qshade:rgba(255,255,255,.03);
+  --accent:#8FAAE6; --accent-fill:#6d8fd6; --on-accent:#0A1B26; --wash:#16304D;
+  --amber:#FEC673; --amber-ink:#F4C46E;
+  --band:#0E3144; --band-ink:#FFFFFF; --band-ink-2:#B4C7D4;
+  --s1:#6d8fd6; --s2:#c07c14; --s3:#22a088; --s4:#a57ccc;
+  --q1:#4f76c4; --q2:#9eb1d6; --q3:#c9d5ec;
+  --good-ink:#5CC98C; --warn-ink:#EDB14A; --bad-ink:#F2837A;
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:400 15.5px/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+h1,h2,h3,h4,h5{margin:0;color:var(--head)}
+p{margin:0}
+code{font-family:var(--f-mono)}
+
+/* motion */
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes ringIn{from{stroke-dashoffset:var(--c)}to{stroke-dashoffset:0}}
+.band .eyebrow,.band h1,.band .lede,.sum > div{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+.band h1{animation-delay:.08s} .band .lede{animation-delay:.18s}
+.sum > div:nth-child(1){animation-delay:.3s} .sum > div:nth-child(2){animation-delay:.4s} .sum > div:nth-child(3){animation-delay:.5s}
+.rise.play{animation:rise .75s cubic-bezier(.2,.7,.2,1) both}
+.play .gx{transform-box:fill-box;transform-origin:left center;animation:growX .85s cubic-bezier(.2,.8,.2,1) both}
+.play .gy{transform-box:fill-box;transform-origin:center bottom;animation:growY .85s cubic-bezier(.2,.8,.2,1) both}
+.play .gyc{transform-box:fill-box;transform-origin:center;animation:growY .75s cubic-bezier(.2,.8,.2,1) both}
+.play .fade{animation:fadeIn .9s ease both}
+.play .pop{transform-box:fill-box;transform-origin:center;animation:pop .45s cubic-bezier(.3,1.4,.5,1) both}
+.play .draw{stroke-dasharray:1;animation:draw 1.3s ease both}
+.play .ringarc{animation:ringIn 1.5s cubic-bezier(.2,.8,.2,1) both}
+.play .gspan{transform-origin:left center;animation:growX .95s cubic-bezier(.2,.8,.2,1) both}
+.hsteps.play .hfill{animation:growX 1.6s cubic-bezier(.4,0,.2,1) both}
+.hsteps.play .hstep{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1160px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);display:flex;align-items:center;gap:0 16px;flex-wrap:wrap}
+.brand{font:400 19px/1 var(--f-display);color:var(--head);text-decoration:none;white-space:nowrap;padding-block:17px}
+.nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-left:auto;min-width:0;max-width:100%}
+.nav::-webkit-scrollbar{display:none}
+.nav a{padding:18px 8px 16px;font-size:13.5px;font-weight:600;color:var(--ink-2);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s}
+.nav a:hover{color:var(--head)}
+.nav a.on{color:var(--head);border-bottom-color:var(--amber)}
+@media (max-width:1000px){.brand{padding-block:13px 3px}.nav{margin-left:0;width:100%}.nav a{padding:9px 8px 10px}}
+
+/* band */
+.band{position:relative;overflow:hidden;background:var(--band);color:var(--band-ink);scroll-margin-top:64px}
+.band canvas{position:absolute;inset:0;pointer-events:none}
+.band-in{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:68px 108px}
+.band .eyebrow{color:var(--amber)}
+.band h1{color:var(--band-ink);font:400 clamp(40px,6vw,68px)/1.04 var(--f-display);margin-top:16px;text-wrap:balance}
+.band .lede{color:var(--band-ink-2);margin-top:16px}
+.sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin-top:40px}
+.sum > div{display:grid;gap:8px;align-content:start;padding-top:14px;border-top:3px solid var(--amber)}
+.sum h3{color:var(--band-ink);font:700 17px/1.3 var(--f-body)}
+.sum p{color:var(--band-ink-2);font-size:15px}
+@media (max-width:820px){.sum{grid-template-columns:1fr;gap:20px}}
+
+/* page */
+.wrap{max-width:1160px;margin:0 auto;padding-inline:clamp(16px,4vw,40px);padding-block:0 56px}
+section{scroll-margin-top:64px;padding-top:100px}
+@media (max-width:1000px){section,.band{scroll-margin-top:100px}}
+.sec-head{display:grid;gap:12px;margin-bottom:32px;max-width:780px}
+.eyebrow{font:500 12px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+h2{font:400 clamp(28px,3.6vw,40px)/1.12 var(--f-display);text-wrap:balance}
+h3{font:700 19px/1.3 var(--f-body);letter-spacing:-.005em;text-wrap:balance}
+h4{font:700 16px/1.35 var(--f-body);text-wrap:balance}
+.lede{font-size:17.5px;line-height:1.55;color:var(--ink-2);max-width:64ch}
+.lbl{font:500 11.5px/1.2 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.sub{margin:56px 0 16px}
+.muted{color:var(--ink-3);font-size:13px}
+.tw{overflow-x:auto}
+
+/* stage strip */
+.state{margin-top:-66px;position:relative;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px clamp(16px,2.4vw,28px) 18px;box-shadow:var(--shadow)}
+.state-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 24px;align-items:center;margin-bottom:14px}
+.legend-m{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--ink-2)}
+.legend-m span{display:inline-flex;align-items:center;gap:7px}
+.srow{display:grid;gap:10px;padding-block:14px;border-top:1px solid var(--line)}
+.srow-l{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.srow-l b{font:700 15px/1.3 var(--f-body);color:var(--head)}
+.srow-l span{font-size:12.5px;color:var(--ink-3)}
+.scells{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.scell{display:grid;gap:7px;align-content:start;text-align:left;padding:10px 10px 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer;min-width:0;transition:border-color .2s, background .2s, transform .2s}
+.scell:hover{border-color:var(--ink-3);background:var(--surface);transform:translateY(-2px)}
+.scell .no{font:500 11px/1 var(--f-mono);color:var(--ink-3)}
+.scell .nm{font-size:13px;font-weight:700;line-height:1.25;color:var(--head);overflow-wrap:break-word;hyphens:auto}
+.scell .lv{font-size:11.5px;line-height:1.2;font-weight:600}
+.state-foot{padding-top:12px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-2)}
+@media (max-width:900px){.scells{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:460px){.scells{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.m{display:inline-flex;gap:2px;vertical-align:middle;flex:none}
+.m i{display:block;width:12px;height:5px;border-radius:1.5px;background:var(--line-2);opacity:.6}
+.m i.f{background:var(--ink-2);opacity:1}
+.m.tg i.f{background:var(--accent-fill)}
+.lv0{color:var(--bad-ink)} .lv1{color:var(--warn-ink)} .lv2{color:var(--ink-2)} .lv3{color:var(--accent)}
+
+/* why */
+.why-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:980px){.why-grid{grid-template-columns:1fr}}
+.lessons{background:var(--sand);border-radius:12px;padding:20px clamp(16px,2.4vw,24px)}
+.lessons h3{margin-bottom:6px}
+.lessons > p{font-size:13.5px;color:var(--ink-2);margin-bottom:10px}
+.lesson{display:grid;gap:4px;padding:13px 0;border-top:1px solid var(--sand-2)}
+.lesson b{font-size:15px;color:var(--head);font-weight:700}
+.lesson span{font-size:14.5px;color:var(--ink-2)}
+.lesson span::before{content:"→ ";color:var(--accent);font-weight:700}
+.est{background:var(--surface);border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);overflow:hidden}
+@media (max-width:900px){.est{grid-template-columns:1fr}}
+.est-l{padding:18px clamp(16px,2.4vw,24px);min-width:0}
+.est-l h4{margin-bottom:10px}
+.etable{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;font-variant-numeric:tabular-nums}
+.etable th{font:500 10.5px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:0 10px 8px 0;border-bottom:1px solid var(--line-2)}
+.etable td{padding:8px 10px 8px 0;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:middle}
+.etable td:first-child{color:var(--ink)}
+.etable td:last-child,.etable th:last-child{text-align:right;color:var(--ink);font-weight:600;white-space:nowrap}
+.etable input{width:58px;padding:5px 7px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface-2);text-align:right;font-variant-numeric:tabular-nums}
+.etable input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--wash)}
+.est-r{padding:22px clamp(16px,2.4vw,24px);background:var(--band);color:var(--band-ink);display:grid;gap:8px;align-content:center}
+.est-r .lbl{color:var(--band-ink-2)}
+.est-r .big{font:400 46px/1 var(--f-display);color:var(--amber)}
+.est-r p{color:var(--band-ink-2);font-size:14.5px}
+.est-r small{color:var(--band-ink-2);font-size:12.5px}
+.proofs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.proofs{grid-template-columns:1fr}}
+.proof{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:8px;align-content:start;transition:transform .2s, box-shadow .2s}
+.proof:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.proof p{font-size:14.5px;color:var(--ink-2)}
+.proof .lbl{color:var(--accent)}
+
+/* flow */
+.toggle{display:inline-flex;border:1px solid var(--line-2);border-radius:9px;padding:3px;background:var(--surface);gap:2px}
+.toggle button{border:0;background:transparent;padding:7px 14px;border-radius:6px;font-size:14px;font-weight:700;color:var(--ink-2);cursor:pointer;transition:background .2s,color .2s}
+.toggle button[aria-pressed="true"]{background:var(--head);color:var(--bg)}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr) 40px minmax(0,1fr);margin-top:20px}
+.fcol{display:grid;gap:8px;align-content:start;min-width:0}
+.fcol-h{display:grid;gap:4px;margin-bottom:6px}
+.fcol.mid{background:var(--sand);border:1px solid transparent;border-radius:12px;padding:14px;transition:background .3s, border-color .3s}
+.flow.today .fcol.mid{background:transparent;border:1px dashed var(--line-2)}
+.fnode{display:grid;grid-template-columns:18px minmax(0,1fr);gap:3px 10px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;animation:fadeIn .45s ease both}
+.fnode b{font-size:14px;font-weight:700;line-height:1.3;color:var(--head)}
+.fnode span{grid-column:2;font-size:13px;color:var(--ink-2);line-height:1.4}
+.fnode em{grid-column:2;font:500 10.5px/1.3 var(--f-mono);font-style:normal;letter-spacing:.04em;color:var(--accent)}
+.flow.today .mid .fnode{background:transparent;border-style:dashed}
+.fnode svg{grid-row:span 3;margin-top:1px}
+.fnode .iss{color:var(--warn-ink)} .fnode .ok{color:var(--accent-fill)}
+.arrow{display:flex;align-items:center;justify-content:center;color:var(--ink-3)}
+@media (max-width:900px){.flow{grid-template-columns:minmax(0,1fr)}.arrow{height:40px}.arrow svg{transform:rotate(90deg)}}
+.trail{margin-top:32px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px clamp(16px,2.4vw,28px) 18px}
+.trail-h{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.trail-h p{color:var(--ink-2);font-size:14.5px;margin-top:4px;max-width:64ch}
+.rid{font:500 13px/1 var(--f-mono);background:var(--band);color:var(--amber);padding:6px 9px;border-radius:5px;white-space:nowrap}
+.tsteps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tstep{background:var(--surface);padding:12px 12px 10px;min-width:0}
+.tstep h5{font:500 11px/1.3 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.tstep dl{margin:0;display:grid;gap:1px;font:400 12.5px/1.35 var(--f-mono)}
+.tstep dt{color:var(--ink-3)}
+.tstep dd{margin:0 0 8px;color:var(--ink);overflow-wrap:anywhere}
+.cap{margin-top:12px;font-size:13px;color:var(--ink-3)}
+@media (max-width:900px){.tsteps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.tsteps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* lifecycle */
+.lc-controls{display:grid;gap:12px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ctl > .lbl{min-width:84px}
+.seg{padding:8px 13px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface);font-size:14px;font-weight:700;color:var(--ink-2);cursor:pointer;transition:all .2s}
+.seg:hover{color:var(--head);border-color:var(--ink-3)}
+.seg[aria-pressed="true"]{background:var(--head);border-color:var(--head);color:var(--bg)}
+.sv{padding:5px 11px;border:1px solid var(--line-2);border-radius:999px;background:transparent;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .2s}
+.sv:hover{color:var(--head)}
+.sv[aria-pressed="true"]{background:var(--wash);border-color:var(--accent);color:var(--accent)}
+.lc-desc{color:var(--ink-2);font-size:15px;margin-top:20px;max-width:86ch}
+.rail{position:relative;display:flex;margin-top:22px}
+.rail::before{content:"";position:absolute;left:16px;right:40px;top:16px;height:1px;background:var(--line-2)}
+.st{position:relative;flex:1 1 0;min-width:0;display:grid;gap:8px;justify-items:start;align-content:start;text-align:left;background:none;border:0;padding:0 10px 10px 0;cursor:pointer;transition:opacity .2s}
+.st .dot{width:33px;height:33px;border-radius:50%;display:grid;place-items:center;font:500 12px/1 var(--f-mono);background:var(--bg);border:1px solid var(--line-2);color:var(--ink-2);transition:all .2s}
+.st .nm{font-size:13px;font-weight:700;line-height:1.25;color:var(--head);overflow-wrap:break-word;hyphens:auto}
+.st:hover .dot{border-color:var(--ink-2);color:var(--ink);transform:scale(1.08)}
+.st[aria-pressed="true"] .dot{background:var(--head);border-color:var(--head);color:var(--bg);transform:scale(1.08)}
+.st.hit .dot{border:2px solid var(--accent-fill);color:var(--accent)}
+.st.hit[aria-pressed="true"] .dot{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-accent)}
+.st.dim{opacity:.35}
+@media (max-width:760px){
+  .rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .rail::before{display:none}
+  .st{grid-template-columns:33px minmax(0,1fr);align-items:center;gap:4px 10px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+  .st .dot{grid-row:span 2}
+}
+.detail{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.detail > *{animation:fadeIn .4s ease both}
+.d-head{padding:22px clamp(16px,2.6vw,30px) 18px;display:grid;gap:8px}
+.d-head h3{font:400 28px/1.15 var(--f-display);color:var(--head)}
+.d-head p{color:var(--ink-2);max-width:72ch}
+.cmp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--line)}
+.cmp > div{padding:18px clamp(16px,2.6vw,30px) 20px;display:grid;gap:10px;align-content:start}
+.cmp .now{background:var(--surface-2)}
+.cmp .next{background:var(--wash)}
+.cmp-l{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.cmp-l .lv{font-size:12.5px;font-weight:700}
+.cmp p{font-size:14.5px;color:var(--ink)}
+.d-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);border-top:1px solid var(--line)}
+.d-body > div{padding:20px clamp(16px,2.6vw,30px);display:grid;gap:12px;align-content:start}
+.d-body > div + div{border-left:1px solid var(--line)}
+.needs{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.needs li{position:relative;padding-left:16px;font-size:14.5px;color:var(--ink-2)}
+.needs li::before{content:"";position:absolute;left:0;top:.6em;width:6px;height:6px;border:1.5px solid var(--ink-3);border-radius:50%}
+.acts{margin:0;padding:0;list-style:none;display:grid}
+.acts li{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:14.5px;color:var(--ink)}
+.acts li:first-child{border-top:0;padding-top:2px}
+.tag{font:500 10.5px/1.3 var(--f-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.acts li.hit .tag{color:var(--accent);font-weight:600}
+.acts li.hit span:last-child{font-weight:700}
+.d-mets{padding:16px clamp(16px,2.6vw,30px) 18px;border-top:1px solid var(--line);display:grid;gap:10px}
+.d-mets-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 20px;align-items:center}
+.tleg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-3)}
+.tleg span{display:inline-flex;align-items:center;gap:6px}
+.tleg i,.mchip i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.tc{background:var(--s3)} .tdv{background:var(--s1)} .tn{background:var(--s2)}
+.mchips{display:flex;flex-wrap:wrap;gap:6px}
+.mchip{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 8px;border:1px solid var(--line-2);border-radius:999px;font-size:13px;color:var(--ink-2);background:var(--surface)}
+.mchip code{font-size:11.5px;color:var(--ink-3)}
+.mchip.pri{color:var(--head);font-weight:700;border-color:var(--ink-3)}
+.d-foot{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;padding:16px clamp(16px,2.6vw,30px) 18px;border-top:1px solid var(--line);background:var(--surface-2)}
+.kv{display:grid;gap:8px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--surface)}
+.stepnav{display:flex;gap:6px;margin-left:auto}
+.sbtn{padding:7px 12px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface);font-size:13px;font-weight:700;cursor:pointer;color:var(--head);transition:border-color .2s}
+.sbtn:hover:not(:disabled){border-color:var(--ink-3)}
+.sbtn:disabled{opacity:.4;cursor:default}
+.lc-note{margin-top:12px;font-size:13px;color:var(--ink-3)}
+@media (max-width:760px){.cmp,.d-body{grid-template-columns:1fr}.d-body > div + div{border-left:0;border-top:1px solid var(--line)}.acts li{grid-template-columns:1fr;gap:2px}.stepnav{margin-left:0}}
+
+/* services */
+.svcs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:700px){.svcs{grid-template-columns:1fr}}
+.svc{display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;padding:16px 18px 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;transition:transform .2s, box-shadow .2s}
+.svc:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.svc.new{background:var(--sand);border-color:transparent}
+.svc p{font-size:14px;color:var(--ink-2)}
+.svc-f{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+.svc.new .svc-f{border-top-color:var(--sand-2)}
+.link{background:none;border:0;padding:0;color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.link:hover{text-decoration:underline}
+
+/* history */
+.hsteps{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}
+.hsteps::before{content:"";position:absolute;left:19px;right:19px;top:19px;height:2px;background:var(--line)}
+.hfill{position:absolute;left:19px;right:19px;top:19px;height:2px;background:var(--amber);transform-origin:left center}
+.hstep{position:relative;display:grid;gap:8px;align-content:start}
+.hstep .n{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--band);color:var(--amber);font:400 17px/1 var(--f-display);position:relative;z-index:1;box-shadow:0 0 0 5px var(--bg)}
+.hstep h3{font:400 24px/1.15 var(--f-display);margin-top:6px}
+.hstep p{font-size:14px;color:var(--ink-2)}
+.hchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.hchips span{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--sand);color:var(--ink-2)}
+@media (max-width:980px){
+  .hsteps{grid-template-columns:1fr;gap:20px}
+  .hsteps::before{left:18px;right:auto;top:19px;bottom:19px;width:2px;height:auto}
+  .hfill{display:none}
+  .hstep{grid-template-columns:38px minmax(0,1fr);column-gap:16px}
+  .hstep .n{grid-row:span 4}
+  .hstep h3{margin-top:4px}
+}
+.hist-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;margin-top:44px;align-items:start}
+@media (max-width:980px){.hist-grid{grid-template-columns:1fr}}
+.cov{display:grid}
+.cov-h,.cov-r{display:grid;grid-template-columns:minmax(0,1fr) repeat(5,28px) 30px;align-items:center;gap:4px}
+.cov-h span{font:500 10.5px/1 var(--f-mono);color:var(--ink-3);text-align:center;padding-bottom:8px}
+.cov-h span:first-child{text-align:left}
+.cov-r{padding:5px 0;border-top:1px solid var(--line)}
+.cov-r .nm{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cov-r .nm code{font-size:10.5px;color:var(--ink-3);margin-right:7px}
+.cov-r.pri .nm{color:var(--head);font-weight:700}
+.cov-r i,.leg i.cf,.leg i.cp,.leg i.cn{justify-self:center;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line-2);display:block;background:transparent}
+.cov-r i.f,.leg i.cf{background:var(--accent-fill);border-color:var(--accent-fill)}
+.cov-r i.p,.leg i.cp{background:linear-gradient(90deg,var(--accent-fill) 50%,transparent 50%);border-color:var(--accent-fill)}
+.cov-r b{font:700 12.5px var(--f-body);color:var(--head);text-align:right;font-variant-numeric:tabular-nums}
+.anchors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.anchor{background:var(--surface);padding:16px 18px;display:grid;gap:4px;align-content:start}
+.anchor b{font:400 32px/1.05 var(--f-display);color:var(--head)}
+.anchor span{font-size:13.5px;color:var(--ink-2)}
+.anchor small{font-size:11.5px;color:var(--ink-3)}
+.unlocks{margin-top:18px}
+.unlock{padding:12px 0;border-top:1px solid var(--line);display:grid;gap:3px}
+.unlock b{font-size:15px;color:var(--head)}
+.unlock p{font-size:14px;color:var(--ink-2)}
+
+/* requests */
+.req{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start}
+@media (max-width:920px){.req{grid-template-columns:1fr;gap:32px}}
+.req-col{display:grid;gap:14px;align-content:start;min-width:0}
+.steps{list-style:none;margin:0 0 12px;padding:0;display:grid;counter-reset:s}
+.steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:2px 14px;padding-bottom:16px;position:relative}
+.steps li::before{counter-increment:s;content:counter(s);grid-row:span 2;width:28px;height:28px;border-radius:50%;border:1px solid var(--ink-2);display:grid;place-items:center;font:500 12px/1 var(--f-mono);color:var(--ink);background:var(--bg);position:relative;z-index:1}
+.steps li:not(:last-child)::after{content:"";position:absolute;left:14px;top:28px;bottom:0;width:1px;background:var(--line-2)}
+.steps li:last-child{padding-bottom:0}
+.steps b{font-size:15px;font-weight:700;color:var(--head)}
+.steps span{font-size:14px;color:var(--ink-2)}
+.tiers{width:100%;border-collapse:collapse;font-size:14px}
+.tiers th,.tiers td{text-align:left;padding:9px 14px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.tiers th{font:500 11px/1.2 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);border-bottom-color:var(--line-2)}
+.tiers td{color:var(--ink-2)}
+.tiers td:first-child{font-weight:700;color:var(--head);white-space:nowrap}
+.tiers td:first-child i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
+.chat{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.chat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.chat-top b{font-size:15px;font-weight:800;color:var(--head)}
+.chat-top span{font:500 10.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);padding:4px 6px;border-radius:4px}
+.msgs{padding:6px 0 14px}
+.msg{display:grid;grid-template-columns:34px minmax(0,1fr);gap:0 12px;padding:10px 16px 4px}
+.msgs.play .msg{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+.msgs.play .msg:nth-child(2){animation-delay:.35s} .msgs.play .msg:nth-child(3){animation-delay:.7s}
+.av{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font:700 12.5px/1 var(--f-body);color:var(--surface);background:var(--ink-2)}
+.av.dt{background:var(--band);color:var(--amber)}
+.who{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.who b{font-size:14px;color:var(--head)}
+.who span{font-size:12px;color:var(--ink-3)}
+.msg p{font-size:14px;color:var(--ink);margin-top:2px}
+.form-card{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:6px;background:var(--surface-2)}
+.form-card .ft{font-size:13px;font-weight:800;color:var(--head)}
+.fr{display:grid;grid-template-columns:112px minmax(0,1fr);gap:10px;font-size:13.5px;margin:0}
+.fr dt{color:var(--ink-3)}
+.fr dd{margin:0;color:var(--ink)}
+.chip-id{font:500 12.5px/1.4 var(--f-mono);background:var(--wash);color:var(--accent);padding:1px 6px;border-radius:4px;white-space:nowrap}
+@media (max-width:460px){.fr{grid-template-columns:1fr;gap:0}}
+.log{margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.log-top{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;align-items:center;padding:14px clamp(16px,2.4vw,24px);border-bottom:1px solid var(--line)}
+.log-top p{font-size:12.5px;color:var(--ink-3)}
+.log-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}
+.log-body > div{padding:18px clamp(16px,2.4vw,24px);min-width:0;display:grid;gap:14px;align-content:start}
+.log-body > div + div{border-left:1px solid var(--line)}
+@media (max-width:900px){.log-body{grid-template-columns:1fr}.log-body > div + div{border-left:0;border-top:1px solid var(--line)}}
+.log-body .ccard{border:0;padding:0}
+.lstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lstat{display:grid;gap:2px}
+.lstat b{font:700 26px/1.1 var(--f-body);color:var(--head)}
+.lstat span{font-size:12.5px;color:var(--ink-3)}
+.rtable{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+.rtable th{font:500 10.5px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:0 10px 8px 0;border-bottom:1px solid var(--line-2)}
+.rtable td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);color:var(--ink-2);vertical-align:top}
+.rtable td:first-child{font:500 12.5px var(--f-mono);color:var(--accent);white-space:nowrap}
+.rtable td:nth-child(2){color:var(--ink)}
+.spill{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;border:1px solid currentColor}
+.sp-done{color:var(--good-ink)} .sp-prog{color:var(--accent)} .sp-scope{color:var(--warn-ink)}
+
+/* dashboard */
+.dash{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.dash-top{display:flex;flex-wrap:wrap;gap:10px 20px;justify-content:space-between;align-items:center;padding:16px clamp(16px,2.4vw,24px);border-bottom:1px solid var(--line)}
+.dash-top h3{font:400 22px/1.2 var(--f-display)}
+.dash-top p{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.illus{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--warn-ink);padding:5px 11px;border-radius:999px;border:1px solid currentColor}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px clamp(16px,2.4vw,24px);border-bottom:1px solid var(--line);background:var(--surface-2)}
+.filters > .lbl{margin-right:6px}
+.fchip{padding:6px 11px;border-radius:7px;border:1px solid var(--line-2);background:var(--surface);font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .2s}
+.fchip:hover{color:var(--head)}
+.fchip[aria-checked="true"]{background:var(--head);color:var(--bg);border-color:var(--head)}
+.fyear{margin-left:auto;font-size:12.5px;color:var(--ink-3)}
+.dblock{padding:24px clamp(16px,2.4vw,24px) 26px;border-bottom:1px solid var(--line)}
+.dblock:last-child{border-bottom:0}
+.dblock-h{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.dblock-h p{font-size:12.5px;color:var(--ink-3)}
+.pyr-grid{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:980px){.pyr-grid{grid-template-columns:1fr}}
+.pyr{display:grid;gap:6px}
+.lvl{margin-inline:auto;width:100%;background:var(--sand);border-radius:8px;padding:12px 14px 14px;display:grid;gap:10px}
+.lvl-h{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline;justify-content:space-between}
+.lvl-h b{font:800 11.5px/1.3 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--head)}
+.lvl-h span{font-size:12px;font-style:italic;color:var(--ink-3)}
+.pms{display:flex;flex-wrap:wrap;gap:8px}
+.pm{flex:1 1 140px;min-width:0;background:var(--surface);border-radius:7px;padding:10px 12px;display:grid;gap:3px;align-content:start}
+.pm .k{font-size:12px;color:var(--ink-2);line-height:1.3}
+.pm .row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.pm .v{font:700 24px/1.1 var(--f-body);color:var(--head);white-space:nowrap}
+.pm .s{font-size:11.5px;color:var(--ink-3)}
+.pm code{font-size:10.5px;color:var(--ink-3)}
+.pm.pending{background:transparent;border:1px dashed var(--ink-3)}
+.pm.pending .v{font:700 13px/1.3 var(--f-body);color:var(--warn-ink);white-space:normal}
+@media (min-width:981px){.lvl.w1{width:62%}.lvl.w2{width:76%}.lvl.w3{width:90%}}
+.goals{background:var(--band);color:var(--band-ink);border-radius:10px;padding:16px 18px;display:grid;gap:14px;align-content:start}
+.goals h5{font:800 11.5px/1.3 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--amber)}
+.goal{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;align-items:center}
+.goal b{display:block;font:700 15px/1.3 var(--f-body);color:var(--band-ink)}
+.goal span{font-size:12.5px;color:var(--band-ink-2)}
+.goals small{font-size:11.5px;color:var(--band-ink-2)}
+.gwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.gantt{min-width:780px}
+.g-head,.g-row{display:grid;grid-template-columns:260px minmax(0,1fr)}
+.g-head{border-bottom:1px solid var(--line)}
+.g-hl{padding:0 16px 10px;align-self:end}
+.g-htrack{position:relative;padding-top:28px}
+.g-q{display:grid;grid-template-columns:repeat(4,1fr)}
+.g-m{display:grid;grid-template-columns:repeat(12,1fr);padding-bottom:9px}
+.g-q span{font:800 11px/1 var(--f-body);letter-spacing:.08em;color:var(--head);padding:0 0 7px 8px;border-left:1px solid var(--line-2)}
+.g-m span{font:500 10.5px/1 var(--f-mono);color:var(--ink-3);padding-left:8px}
+.g-now{position:absolute;top:4px;transform:translateX(-50%);font:700 10.5px/1 var(--f-body);color:#00354E;background:var(--amber);padding:4px 9px;border-radius:999px;white-space:nowrap;z-index:2}
+.g-row{border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;padding:0;cursor:pointer;width:100%;transition:background .2s,box-shadow .2s}
+.g-row:last-child{border-bottom:0}
+.g-row:hover{background:var(--surface-2)}
+.g-row[aria-pressed="true"]{background:var(--wash);box-shadow:inset 3px 0 0 var(--amber)}
+.g-name{padding:11px 16px;display:grid;gap:3px;min-width:0}
+.g-name b{font-size:14px;font-weight:700;color:var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-sub{font-size:12px;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:0 10px;align-items:center;white-space:nowrap}
+.g-track{position:relative;min-height:54px;background:linear-gradient(to right,transparent 25%,var(--qshade) 25%,var(--qshade) 50%,transparent 50%,transparent 75%,var(--qshade) 75%)}
+.gspan{position:absolute;top:50%;height:14px;margin-top:-7px;border-radius:7px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.gseg{position:absolute;top:0;bottom:0}
+.gseg.fut{opacity:.35}
+.gdm{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;transform:rotate(45deg);border-radius:2px;background:var(--amber);border:2px solid #00354E;z-index:2}
+.gdm.past{background:var(--surface);border-color:var(--ink-3)}
+.gtoday{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--amber);z-index:1}
+.gleg{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:12px;font-size:12px;color:var(--ink-2)}
+.gleg span{display:inline-flex;align-items:center;gap:6px}
+.gleg i{display:inline-block;width:14px;height:8px;border-radius:4px}
+.gleg i.lt{background:var(--s2);opacity:.35}
+.gleg i.dm{width:9px;height:9px;transform:rotate(45deg);border-radius:2px;background:var(--amber);border:2px solid #00354E}
+.gleg i.dm.past{background:var(--surface);border-color:var(--ink-3)}
+.drill{margin-top:14px;border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);overflow:hidden}
+.drill.play{animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+@media (max-width:860px){.drill{grid-template-columns:1fr}}
+.drill > div{padding:16px 18px;display:grid;gap:12px;align-content:start;min-width:0}
+.drill > div + div{border-left:1px solid var(--line);background:var(--surface-2)}
+@media (max-width:860px){.drill > div + div{border-left:0;border-top:1px solid var(--line)}}
+.drill h4{font:400 22px/1.2 var(--f-display)}
+.dmeta{display:flex;flex-wrap:wrap;gap:6px}
+.dstage{display:grid;gap:6px}
+.dstats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.dstats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dstat{display:grid;gap:2px;align-content:start}
+.dstat b{font:700 20px/1.15 var(--f-body);color:var(--head)}
+.dstat span{font-size:12px;color:var(--ink-3)}
+.sdots{display:flex;gap:3px}
+.sdots i{width:9px;height:9px;border-radius:50%;background:var(--line-2)}
+.sdots i.d{background:var(--ink-3)}
+.sdots i.c{background:var(--accent-fill);box-shadow:0 0 0 2px var(--wash)}
+.status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;white-space:nowrap}
+.st-on{color:var(--good-ink)} .st-risk{color:var(--warn-ink)} .st-late{color:var(--bad-ink)}
+.cgrid{display:grid;gap:12px}
+.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1000px){.c3,.c2{grid-template-columns:1fr}}
+.ccard{border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px;display:grid;gap:12px;align-content:start;min-width:0;background:var(--surface)}
+.ccard-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ccard-t{font:700 14.5px/1.3 var(--f-body);color:var(--head)}
+.ccard-s{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.ccard-n{font-size:13.5px;color:var(--ink-2)}
+.tbtn{flex:none;padding:3px 8px;border:1px solid var(--line-2);border-radius:5px;background:transparent;font-size:11.5px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.tbtn:hover{color:var(--head);border-color:var(--ink-3)}
+.cbox{width:100%;min-width:0}
+.cbox svg{display:block}
+.empty{font-size:13px;color:var(--ink-3);padding:24px 0}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-2)}
+.leg span{display:inline-flex;align-items:center;gap:6px}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:2px}
+.leg i.dash{height:0;width:14px;border-top:1.5px dashed var(--ink-2);background:none!important;border-radius:0}
+.ctable{overflow-x:auto}
+.ctable table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.ctable th,.ctable td{padding:6px 10px 6px 0;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.ctable th{color:var(--ink-3);font-weight:600}
+.ctable td:not(:first-child),.ctable th:not(:first-child){text-align:right}
+.t-ax{font:500 11px var(--f-body);fill:var(--ink-3);font-variant-numeric:tabular-nums}
+.t-lbl{font:600 12.5px var(--f-body);fill:var(--ink-2)}
+.t-val{font:700 12.5px var(--f-body);fill:var(--head)}
+.t-big{font:700 17px var(--f-body);fill:var(--head)}
+.t-in-l{font:700 11.5px var(--f-body);fill:#FFFFFF}
+.t-in-d{font:700 11.5px var(--f-body);fill:#0D2B3C}
+.t-mut{font:600 11.5px var(--f-body);fill:var(--ink-3)}
+.t-ring{font:700 19px var(--f-body);fill:#FFFFFF}
+.hit{outline:none}
+.hit:focus-visible{stroke:var(--accent);stroke-width:1.5}
+
+/* roadmap */
+.phases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));row-gap:32px}
+.ph{padding:20px 22px 0 0;display:grid;gap:10px;align-content:start;position:relative;border-top:2px solid var(--line-2)}
+.ph::before{content:"";position:absolute;top:-7px;left:0;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--head)}
+.ph.now{border-top-color:var(--amber)}
+.ph.now::before{background:var(--amber);border-color:var(--amber)}
+.ph .when{font:500 12px/1 var(--f-mono);color:var(--ink-3);letter-spacing:.04em}
+.ph h3{font:400 24px/1.15 var(--f-display)}
+.ph ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px;color:var(--ink-2)}
+@media (max-width:1000px){.phases{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.phases{grid-template-columns:1fr}}
+.la-note{margin-top:26px;padding:14px 18px;background:var(--sand);border-radius:10px;font-size:14px;color:var(--ink-2);max-width:900px}
+.la-note b{color:var(--head)}
+.asks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 40px;margin-top:10px}
+.asks div{padding:13px 0;border-bottom:1px solid var(--line);display:grid;gap:3px}
+.asks b{font-size:15px;font-weight:700;color:var(--head)}
+.asks p{font-size:14px;color:var(--ink-2)}
+@media (max-width:760px){.asks{grid-template-columns:1fr}}
+footer{margin-top:88px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;font-size:12.5px;color:var(--ink-3)}
+
+.tip{position:fixed;z-index:60;pointer-events:none;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.14);font-size:12.5px;min-width:130px;max-width:260px}
+.tip-h{font-size:12px;color:var(--ink-3);margin-bottom:4px}
+.tip-r{display:flex;align-items:center;gap:8px;line-height:1.5}
+.tip-r b{color:var(--head);font-weight:700;font-variant-numeric:tabular-nums}
+.tip-r span{color:var(--ink-3)}
+.tip-k{width:12px;height:3px;border-radius:1px;flex:none}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="#overview">VilCap Data Map</a>
+    <nav class="nav" id="nav" aria-label="Sections">
+      <a href="#overview">Overview</a>
+      <a href="#why">Why now</a>
+      <a href="#flow">Data flow</a>
+      <a href="#lifecycle">Lifecycle map</a>
+      <a href="#services">Services</a>
+      <a href="#history">Our history</a>
+      <a href="#requests">Requests</a>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#roadmap">Roadmap</a>
+    </nav>
+  </div>
+</header>
+
+<div class="band" id="overview">
+  <canvas id="band-canvas" aria-hidden="true"></canvas>
+  <div class="band-in" lang="en">
+    <span class="eyebrow">Village Capital · September 2026</span>
+    <h1>Data at Village Capital</h1>
+    <p class="lede">Where our program and investment data is created, where it gets lost today, and what changes when one function owns the analytical layer.</p>
+    <div class="sum">
+      <div><h3>Today</h3><p>Data sits in Abaca, VilData, Airtable, Upmetrics and dozens of Google Sheets and Forms. No one owns the analytical layer, so records go missing and teams rebuild the same work.</p></div>
+      <div><h3>What it costs us</h3><p>Only 3 of 26 headline metrics appear in all five impact reports since 2021. Survival rates, which leadership asks for, appear in one. Funder reports are rebuilt each time.</p></div>
+      <div><h3>What we propose</h3><p>A data and analytics function that owns the analytical layer. Teams keep the tools they know. The function puts the agreed metrics to work, brings our history into one place, and delivers analysis, dashboards and reporting.</p></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap" lang="en">
+  <div class="state" aria-labelledby="state-title">
+    <div class="state-head">
+      <h3 id="state-title">Where each stage stands today</h3>
+      <div class="legend-m" id="state-legend"></div>
+    </div>
+    <div id="state-rows"></div>
+    <p class="state-foot" id="state-foot"></p>
+  </div>
+
+  <section id="why">
+    <div class="sec-head">
+      <span class="eyebrow">Why now</span>
+      <h2>Building on the learning architecture</h2>
+      <p class="lede">The Data Learning Architecture work (board update, 9 September 2026) agreed what VilCap measures and what a new system should do. It also named the gap a data function fills.</p>
+    </div>
+    <div class="why-grid">
+      <div class="lessons">
+        <h3>What the working group found</h3>
+        <p>Key lessons from the board update, and how this proposal responds</p>
+        <div class="lesson"><b>No owner for the analytical layer</b><span>A data and analytics function owns it: standards in daily use, analysis, dashboards and reporting.</span></div>
+        <div class="lesson"><b>No shared agreement on what to measure or learn</b><span>Now agreed: the Pyramid and 58 metrics. The function builds them into forms, surveys and dashboards.</span></div>
+        <div class="lesson"><b>Scattered and not joined up</b><span>One record per company and standard templates connect today’s tools, and move to the new system when it is ready.</span></div>
+      </div>
+      <div id="metrics-card"></div>
+    </div>
+
+    <h3 class="sub">What today costs us</h3>
+    <div class="est">
+      <div class="est-l">
+        <h4>Staff time on manual data work, per year</h4>
+        <div class="tw"><table class="etable" id="est"></table></div>
+        <p class="muted" style="margin-top:10px">Starting assumptions, to confirm with program managers. Edit any number to update the total.</p>
+      </div>
+      <div class="est-r" aria-live="polite">
+        <span class="lbl">Estimated total</span>
+        <span class="big" id="est-total"></span>
+        <p id="est-sub"></p>
+        <small>Time spent rebuilding data that a shared setup would produce once.</small>
+      </div>
+    </div>
+
+    <h3 class="sub">Recent examples of this work</h3>
+    <div class="proofs">
+      <div class="proof"><span class="lbl">Women in Tech 2026</span><h4>Applications report for Standard Chartered Foundation</h4><p>2,125 applications across 10 markets compared with the 115 selected companies, market by market.</p></div>
+      <div class="proof"><span class="lbl">Capital needs segmentation</span><h4>1,211 applications scored</h4><p>Applications from 5 partner ESOs scored against the segmentation factors with a repeatable, AI-assisted method.</p></div>
+      <div class="proof"><span class="lbl">Tech Pathways MENA</span><h4>21 partners, one data structure</h4><p>Cohort 1 reached more than double its committed target. Google.org said VilCap is ahead of its other partners on data.</p></div>
+    </div>
+  </section>
+
+  <section id="flow">
+    <div class="sec-head">
+      <span class="eyebrow">Data flow</span>
+      <h2>How data moves through VilCap</h2>
+      <p class="lede">Based on the learning architecture system map. Tags show which item of the tech-stack wish list each part delivers.</p>
+    </div>
+    <div class="toggle" role="group" aria-label="Show data flow for">
+      <button type="button" id="flow-today" aria-pressed="true">Today</button>
+      <button type="button" id="flow-target" aria-pressed="false">With a data function</button>
+    </div>
+    <div class="flow today" id="flow-grid"></div>
+    <div class="trail">
+      <div class="trail-h">
+        <div>
+          <h4>One record per company</h4>
+          <p>Wish list item 1. With one ID, a company’s record builds up across the lifecycle using the agreed metric IDs.</p>
+        </div>
+        <span class="rid">VC-26-0413</span>
+      </div>
+      <div class="tsteps" id="trail"></div>
+      <p class="cap">Illustrative record. Today these fields sit in four or five separate tools with no shared key.</p>
+    </div>
+  </section>
+
+  <section id="lifecycle">
+    <div class="sec-head">
+      <span class="eyebrow">Lifecycle map</span>
+      <h2>Data needs at every stage</h2>
+      <p class="lede">Pick a program model or the investment cycle, then select a stage to see how its data is handled today, what changes, and which agreed metrics it feeds.</p>
+    </div>
+    <div class="lc-controls">
+      <div class="ctl"><span class="lbl">Model</span><div class="ctl" id="models"></div></div>
+      <div class="ctl"><span class="lbl">Highlight</span><div class="ctl" id="svc-hl"></div></div>
+    </div>
+    <p class="lc-desc" id="lc-desc"></p>
+    <div class="rail" id="rail"></div>
+    <div class="detail" id="detail" aria-live="polite"></div>
+    <p class="lc-note">Current-state ratings will be refined with program managers and the investment team.</p>
+  </section>
+
+  <section id="services">
+    <div class="sec-head">
+      <span class="eyebrow">Data services</span>
+      <h2>What the data function offers</h2>
+    </div>
+    <div class="svcs" id="svcs"></div>
+  </section>
+
+  <section id="history">
+    <div class="sec-head">
+      <span class="eyebrow">Our history</span>
+      <h2>Everything VilCap has learned since 2009, in one place</h2>
+      <p class="lede">Seventeen years of programs and investments sit across Abaca, VilData, old program folders, Airtable and past reports. The history project brings it together once, so it tells our story and gives every new program a baseline.</p>
+    </div>
+    <div class="hsteps" id="hsteps">
+      <span class="hfill" aria-hidden="true"></span>
+      <div class="hstep"><span class="n">1</span><h3>Compile</h3><p>Find and pull every past dataset into one workspace.</p>
+        <div class="hchips"><span>Abaca since launch</span><span>VilData</span><span>Program folders</span><span>Alumni surveys</span><span>Airtable</span><span>Past reports</span></div></div>
+      <div class="hstep"><span class="n">2</span><h3>Clean</h3><p>Match companies to one ID and align fields to the agreed metrics.</p>
+        <div class="hchips"><span>Duplicates</span><span>Name changes</span><span>Currencies and dates</span><span>Gaps flagged</span></div></div>
+      <div class="hstep"><span class="n">3</span><h3>Analyze</h3><p>Build the long view of cohorts, outcomes and trends.</p>
+        <div class="hchips"><span>Survival by cohort</span><span>Follow-on capital</span><span>Selected vs not selected</span><span>Cost per beneficiary</span></div></div>
+      <div class="hstep"><span class="n">4</span><h3>Visualize</h3><p>Turn it into a history view and charts ready to use.</p>
+        <div class="hchips"><span>History dashboard</span><span>Impact report charts</span><span>Proposal figures</span><span>Website</span></div></div>
+      <div class="hstep"><span class="n">5</span><h3>Store</h3><p>Keep it in one archive, documented and access-controlled.</p>
+        <div class="hchips"><span>Data dictionary</span><span>Source for every figure</span><span>Access rules</span><span>Ready for the new system</span></div></div>
+    </div>
+
+    <div class="hist-grid">
+      <div id="cov-card"></div>
+      <div>
+        <div class="anchors" id="anchors">
+          <div class="anchor"><b data-count>10,000+</b><span>ventures in Abaca</span><small>2021 impact report</small></div>
+          <div class="anchor"><b data-count>160</b><span>accelerators run</span><small>by 2022, 2022 impact report</small></div>
+          <div class="anchor"><b data-count>$9.6B</b><span>raised by alumni since 2009</span><small>2025 impact report</small></div>
+          <div class="anchor"><b data-count>40,000</b><span>jobs created, approximately</span><small>2025 impact report</small></div>
+        </div>
+        <div class="unlocks">
+          <h4 style="margin-bottom:8px">What the archive makes possible</h4>
+          <div class="unlock"><b>One agreed total for each headline</b><p>Entrepreneurs supported, capital raised and jobs since 2009, each with a stated definition and source.</p></div>
+          <div class="unlock"><b>Outcomes for every cohort</b><p>Survival and follow-on capital for all alumni, not only recent programs.</p></div>
+          <div class="unlock"><b>Evidence behind our claims</b><p>Refresh the 10-year comparison with industry averages (3X more capital, 2.3X more revenue, 40% more jobs) using current data.</p></div>
+          <div class="unlock"><b>A baseline for every new program</b><p>Past conversion rates, costs and outcomes by region and sector, ready for program design and proposals.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="requests">
+    <div class="sec-head">
+      <span class="eyebrow">Request channel</span>
+      <h2>One channel for data requests</h2>
+      <p class="lede">Program managers and the investment team post requests in one Slack channel. Each request gets an ID, a tier and a delivery date, and the log shows demand over time.</p>
+    </div>
+    <div class="req">
+      <div class="req-col">
+        <ol class="steps">
+          <li><b>Post the request</b><span>Fill in the short form in #data-requests.</span></li>
+          <li><b>Triage</b><span>Within one working day: an ID, a tier and any questions.</span></li>
+          <li><b>Scope</b><span>For standard and project requests, agree output, source and date.</span></li>
+          <li><b>Build and check</b><span>Work on a copy of the data, checked before it goes out.</span></li>
+          <li><b>Deliver and close</b><span>Shared in the thread and marked done in the log.</span></li>
+        </ol>
+        <div class="tw">
+          <table class="tiers">
+            <thead><tr><th>Tier</th><th>Turnaround</th><th>Typical requests</th></tr></thead>
+            <tbody>
+              <tr><td><i style="background:var(--q1)"></i>Quick</td><td>Same or next day</td><td>A number, a list, a quick chart</td></tr>
+              <tr><td><i style="background:var(--q2)"></i>Standard</td><td>3 to 5 working days</td><td>A cleaned dataset, an analysis, report visuals</td></tr>
+              <tr><td><i style="background:var(--q3)"></i>Project</td><td>2 weeks or more</td><td>Dashboards, automations, surveys, research</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="req-col">
+        <div class="chat" aria-label="Example request thread">
+          <div class="chat-top"><b># data-requests</b><span>Example</span></div>
+          <div class="msgs" id="msgs">
+            <div class="msg">
+              <div class="av">PM</div>
+              <div>
+                <div class="who"><b>Program manager</b><span>Mon 10:14</span></div>
+                <div class="form-card">
+                  <div class="ft">Data request</div>
+                  <dl class="fr"><dt>What you need</dt><dd>Gender and country breakdown of applications so far, against our targets</dd></dl>
+                  <dl class="fr"><dt>What it’s for</dt><dd>Decide where to focus outreach in the last two weeks</dd></dl>
+                  <dl class="fr"><dt>Output</dt><dd>Live link, plus two charts for the funder update</dd></dl>
+                  <dl class="fr"><dt>Deadline</dt><dd>Thu, 15 Oct</dd></dl>
+                </div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="av dt">DA</div>
+              <div>
+                <div class="who"><b>Data and Analytics</b><span>Mon 10:52</span></div>
+                <p>Logged as <span class="chip-id">DR-0142</span>, standard tier. I’ll use the agreed women-led definition (<span class="chip-id">VC-045</span>: any woman founder or C-suite member). Live link by Tue, 13 Oct.</p>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="av dt">DA</div>
+              <div>
+                <div class="who"><b>Data and Analytics</b><span>Tue 16:20</span></div>
+                <p>Done. The live view and both charts are in the program folder. <span class="chip-id">DR-0142</span> closed.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log">
+      <div class="log-top"><h4>Request log</h4><p>Illustrative · one quarter</p></div>
+      <div class="log-body">
+        <div>
+          <div class="lstats" id="lstats">
+            <div class="lstat"><b data-count>34</b><span>Requests this quarter</span></div>
+            <div class="lstat"><b data-count>2.5 days</b><span>Median turnaround</span></div>
+            <div class="lstat"><b data-count>91%</b><span>Delivered on time</span></div>
+          </div>
+          <div id="log-chart"></div>
+        </div>
+        <div>
+          <span class="lbl">Recent requests</span>
+          <div class="tw"><table class="rtable" id="log-table"></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="dashboard">
+    <div class="sec-head">
+      <span class="eyebrow">Dashboard</span>
+      <h2>A live read of the Pyramid</h2>
+      <p class="lede">Wish list items 5 and 6: headline numbers kept current and filterable down to a single program. Select a region or a program to drill down.</p>
+    </div>
+
+    <div class="dash" id="dash">
+      <div class="dash-top">
+        <div><h3>Leadership dashboard</h3><p>Would update daily from program and investment data</p></div>
+        <span class="illus">Illustrative data, except 2030 goals</span>
+      </div>
+      <div class="filters">
+        <span class="lbl">Region</span>
+        <div class="ctl" id="region-filter" role="radiogroup" aria-label="Region"></div>
+        <span class="fyear">2026 · as of 30 Sep</span>
+      </div>
+
+      <div class="dblock">
+        <div class="dblock-h"><h4>The Pyramid, live</h4><p>Agreed metric ID in each card</p></div>
+        <div class="pyr-grid">
+          <div class="pyr" id="pyr"></div>
+          <div class="goals" id="goals"></div>
+        </div>
+      </div>
+
+      <div class="dblock">
+        <div class="dblock-h"><h4>Programs this year</h4><p>Select a program to see its detail</p></div>
+        <div class="gwrap"><div class="gantt" id="gantt"></div></div>
+        <div class="gleg">
+          <span><i style="background:var(--s1)"></i>Applications and selection</span>
+          <span><i style="background:var(--s2)"></i>Delivery</span>
+          <span><i style="background:var(--s3)"></i>M&amp;E and reporting</span>
+          <span><i class="lt"></i>Lighter: still to come</span>
+          <span><i class="dm"></i>Funder report due</span>
+          <span><i class="dm past"></i>Submitted</span>
+        </div>
+        <div class="drill" id="drill" aria-live="polite"></div>
+      </div>
+
+      <div class="dblock">
+        <div class="dblock-h"><h4>Who we reach</h4><p>Programs with a selected cohort</p></div>
+        <div class="cgrid c3" id="g-reach"></div>
+      </div>
+
+      <div class="dblock">
+        <div class="dblock-h"><h4>Business health</h4><p>Alumni outcomes, from follow-up surveys and PitchBook</p></div>
+        <div class="cgrid c2" id="g-health"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="sec-head">
+      <span class="eyebrow">Roadmap</span>
+      <h2>How we get there</h2>
+      <p class="lede">The work starts in January 2027, right after step 3 of the learning architecture (tech stack, August to December 2026), so it builds on the agreed metrics and the new system.</p>
+    </div>
+    <div class="phases" id="phases">
+      <div class="ph now"><span class="when">Jan to Mar 2027</span><h3>Foundations</h3>
+        <ul>
+          <li>Launch #data-requests and the request log</li>
+          <li>Company IDs and a question bank built from the agreed metrics</li>
+          <li>Standard templates: application, tracker, feedback form, survey base</li>
+          <li>Inventory of every past data source, 2009 to 2026</li>
+          <li>First live read of the Direct Contribution level</li>
+        </ul>
+      </div>
+      <div class="ph"><span class="when">Apr to Jun 2027</span><h3>Connect</h3>
+        <ul>
+          <li>Syncs from Abaca and Airtable into one record per company</li>
+          <li>Past program and investment data compiled and cleaned into the archive</li>
+          <li>Scheduled PitchBook pull for follow-on capital and operating status</li>
+          <li>Quarterly portfolio form, with the investment team</li>
+        </ul>
+      </div>
+      <div class="ph"><span class="when">Jul to Dec 2027</span><h3>Learn</h3>
+        <ul>
+          <li>Business Health level live: follow-on capital, survival, jobs</li>
+          <li>History view: cohorts and outcomes since 2009</li>
+          <li>Pre/post outcomes across programs</li>
+          <li>Benchmarks: cost per beneficiary and conversion</li>
+        </ul>
+      </div>
+      <div class="ph"><span class="when">2028 onward</span><h3>Share</h3>
+        <ul>
+          <li>Impact report built on the full history, with the same metrics each year</li>
+          <li>Funder reporting from the same dataset</li>
+          <li>Methods for the top two levels: people impacted, AUM influenced</li>
+        </ul>
+      </div>
+    </div>
+    <p class="la-note"><b>If the new system is live by January 2027,</b> the Connect phase builds on it instead of the Google tools. The standards, IDs, templates and archive work either way.</p>
+
+    <h3 class="sub">Decisions needed from leadership</h3>
+    <div class="asks">
+      <div><b>A mandate for the analytical layer</b><p>Clear ownership of data standards, quality and analysis across programs and investments.</p></div>
+      <div><b>Agreement on standards</b><p>Programs use the question bank, templates and the request channel.</p></div>
+      <div><b>Access</b><p>Edit access to VilData, Abaca exports, Airtable, program folders and past archives.</p></div>
+      <div><b>A data contact in each team</b><p>One named person per program and one in the investment team.</p></div>
+      <div><b>A small tools budget</b><p>For automation, storage and dashboard hosting, where free tiers are not enough.</p></div>
+      <div><b>A seat in the working group</b><p>A standing place in the learning architecture group, so both stay aligned.</p></div>
+    </div>
+
+    <footer>
+      <span>VilCap Data Map · September 2026</span>
+      <span>Dashboard figures and program names are examples. The 2030 goals and history figures come from past impact reports.</span>
+    </footer>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- agreed metrics (Impact and Data Metrics Map) ---------- */
+// [name, triage: c capture now / d derivable now / n new collection, leadership priority]
+var MET = {
+  "VC-001":["Applications received","c",0],"VC-002":["Ventures selected","d",1],"VC-003":["Selectivity rate","d",0],
+  "VC-005":["Training and mentorship hours","n",0],"VC-006":["Mentor and investor connections","c",0],"VC-009":["Session ratings","c",0],
+  "VC-010":["Founder NPS","c",0],"VC-011":["Geographic coverage","c",0],"VC-012":["Sector and SDG","n",0],
+  "VC-013":["Analyst support value","n",0],"VC-015":["Programs run","c",0],"VC-016":["Revenue to date","c",0],
+  "VC-020":["Capital raised to date","c",0],"VC-021":["Capital raised post-program","d",1],"VC-022":["Currently fundraising","c",0],
+  "VC-024":["Follow-on investment rate","d",0],"VC-025":["Capital leverage ratio","d",0],"VC-026":["Full-time employees","c",0],
+  "VC-028":["Jobs created and sustained","n",1],"VC-029":["Survival rate","d",1],"VC-030":["VIRAL level at intake","c",0],
+  "VC-032":["Milestone achievement","c",0],"VC-034":["Valuation","d",0],"VC-035":["Exits and acquisitions","d",0],
+  "VC-036":["Operating status","d",0],"VC-038":["Profitability status","n",0],"VC-040":["People impacted","n",1],
+  "VC-041":["Customers served","n",0],"VC-045":["Women founders or C-suite","c",0],"VC-050":["HQ location vs hubs","d",0],
+  "VC-053":["ESO partners supported","c",0],"VC-056":["ESO-supported entrepreneur outcomes","n",0],"VC-064":["Capital deployed by structure","c",0],
+  "VC-067":["Founder narratives","n",0],"VC-069":["VilCap contribution, founder-rated","c",0],"VC-070":["Revenue state","c",0],
+  "VC-072":["Collateral","n",0],"VC-075":["Growth rate","n",0],"VC-076":["Margins","n",0],
+  "VC-080":["Funnel conversion","d",0],"VC-082":["2030 goals progress","d",0],"VC-087":["Network power","n",1],
+  "VC-088":["AUM influenced","n",1],"VC-089":["EBITDA","n",1],"VC-090":["Village Capital AUM","c",1],
+  "VC-091":["Portfolio size and breakdown","c",1],"VC-093":["Peer connection value","n",0]
+};
+var TRIAGE = {c:["Capture now","tc"], d:["Derivable now","tdv"], n:["New collection","tn"]};
+var LEVEL_COUNTS = [["Change in the World",[0,0,6]],["Systemic Influence",[0,0,1]],["Business Health",[9,6,5]],["Direct Contribution",[14,6,7]],["Segmentation factors",[1,0,3]]];
+
+// impact reports 2021 to 2025: 2 reported, 1 partial, 0 not reported (Impact and Data Metrics Map)
+var COVER = [
+  ["VC-002","Ventures selected",[2,2,2,2,2],1],["VC-053","ESO partners supported",[2,2,2,2,2]],["VC-064","Capital deployed",[2,2,2,2,2]],
+  ["VC-006","Mentor and investor connections",[0,2,2,2,2]],["VC-011","Geographic coverage",[0,2,2,2,2]],["VC-021","Capital raised post-program",[0,1,1,2,2],1],
+  ["VC-058","Knowledge products",[2,2,2,2,0]],["VC-059","Media and thought leadership",[2,2,2,2,0]],["VC-081","Org cumulative totals",[2,1,0,2,2]],
+  ["VC-015","Programs run",[0,2,2,2,0]],["VC-028","Jobs created",[1,0,1,0,2],1],["VC-024","Follow-on investment rate",[0,0,0,2,2]],
+  ["VC-046","Women-led share",[2,2,0,0,0]],["VC-047","Underrepresented founders",[2,2,0,0,0]],["VC-055","ESO financial sustainability",[0,2,0,0,2]],
+  ["VC-056","ESO-supported entrepreneur outcomes",[0,2,0,2,0]],["VC-061","Ecosystem convenings",[2,0,2,0,0]],["VC-001","Applications received",[1,0,0,0,0]],
+  ["VC-019","Revenue growth",[1,0,0,0,0]],["VC-025","Capital leverage ratio",[2,0,0,0,0]],["VC-029","Survival rate",[0,0,0,0,2],1],
+  ["VC-035","Exits and acquisitions",[0,2,0,0,0]],["VC-040","People impacted",[0,1,0,0,0],1],["VC-050","HQ location vs hubs",[1,0,0,0,0]],
+  ["VC-079","Comparison with non-selected",[2,0,0,0,0]],["VC-082","2030 goals progress",[0,0,2,0,0]]
+];
+
+var LV = ["Not in place", "Ad hoc", "Partly standard", "Standard"];
+var SERVICES = {
+  collect:{name:"Data collection design", short:"Collection", desc:"Forms, surveys and trackers built from the agreed metrics, so data compares across programs."},
+  clean:{name:"Cleaning and standardization", short:"Cleaning", desc:"Company IDs, fixed answer options, validation and deduplication."},
+  analyze:{name:"Analysis", short:"Analysis", desc:"Pre/post results, conversion, cost per beneficiary and segmentation."},
+  dash:{name:"Dashboards", short:"Dashboards", desc:"Live views for leadership, programs and investments, down to one company."},
+  auto:{name:"Automation", short:"Automation", desc:"Syncs between Abaca, Airtable, VilData and Sheets, plus reminders."},
+  viz:{name:"Visualization", short:"Visualization", desc:"Charts for reports, decks and the website in Flourish, Datawrapper and Canva."},
+  research:{name:"Research and insights", short:"Research", desc:"Cross-program studies, ecosystem mapping and survival analysis."},
+  gov:{name:"Governance and privacy", short:"Governance", desc:"Ownership, access, consent, retention and the data dictionary."},
+  history:{name:"History and archive", short:"History", desc:"Compile, clean, analyze and store all past VilCap data, back to 2009, in one archive.", isNew:true}
+};
+
+function S_(name, lvl, sum, needs, today, target, acts, tools, outs, mets){
+  return {name:name, lvl:lvl, sum:sum, needs:needs, today:today, target:target,
+    acts:acts.map(function(a){var i=a.indexOf("|"); return [a.slice(0,i), a.slice(i+1)];}), tools:tools, outs:outs, mets:mets||[]};
+}
+var STAGES = {
+  kick: S_("Kick-off",1,"Program design, targets, budget and the measurement plan are agreed with the funder.",
+    ["Targets and KPIs from the grant agreement","Selection criteria as measurable thresholds","Survey waves and report dates the funder requires"],
+    "Targets and criteria sit in proposals and ToRs. Each program sets up its own trackers and survey plan, often when the first report is due.",
+    "Each program starts with a one-page measurement plan built from the agreed metrics plus funder extras, and a workspace created from a standard template.",
+    ["collect|Measurement plan linked to the agreed metrics","auto|Program workspace created from a template","analyze|Targets set from past cohorts","gov|Consent language and data ownership"],
+    ["Proposal and grant agreement","Google Drive"],["Measurement plan"],["VC-015","VC-082"]),
+  app: S_("Applications",2,"The application form opens in Abaca and collects company and founder data.",
+    ["Company profile: sector, country, stage","Revenue, capital raised and employees at baseline","Founder and team profile"],
+    "Forms are built in Abaca and exported to VilData. Questions and answer options differ by program, so fields don’t line up across programs, and some data is lost in the export.",
+    "Core questions come from one question bank based on the agreed metrics, with fixed answer options. Applications sync to a clean master sheet daily and become the baseline for later surveys.",
+    ["collect|One question bank from the agreed metrics","auto|Daily sync from Abaca to the program master sheet","clean|Validation for country, currency, ranges and duplicates","dash|Live application count by gender, country and sector"],
+    ["Abaca","VilData","Google Sheets"],["Application master sheet","Live application view"],["VC-001","VC-012","VC-016","VC-020","VC-026","VC-045","VC-050"]),
+  src: S_("Sourcing",1,"Outreach runs while applications are open, to reach the target number and profile of applicants.",
+    ["Applications against target, by day","Mix by country, gender and sector","Referral source"],
+    "Progress is checked by exporting applications and counting by hand, usually close to the deadline.",
+    "A daily view shows volume and mix against targets, so outreach can shift while the window is still open.",
+    ["dash|Sourcing view against targets","collect|Referral question and tracked links","analyze|Which channels bring eligible applicants"],
+    ["Abaca","Google Sheets"],["Sourcing view"],["VC-001","VC-011"]),
+  sel: S_("Selection",0,"Applications are screened for eligibility, scored by reviewers, and the cohort is selected.",
+    ["Eligibility result for each criterion","Reviewer scores and decisions","Selection status for every applicant"],
+    "Eligibility checks are basic and often happen after selection, especially when several partners select at once. Selection status is updated in VilData by hand, and often not at all.",
+    "Eligibility is flagged at application against each threshold, reviewers score in one sheet, and a pool against cohort check runs before the cohort is announced. Selection status syncs to VilData.",
+    ["auto|Eligibility flags for each criterion","collect|Standard scoring rubric and reviewer sheet","analyze|Pool against cohort check","auto|Selection status synced to VilData","gov|Reviewers see only what they score"],
+    ["Abaca","VilData","Google Sheets"],["Selection record","Criteria check"],["VC-002","VC-003","VC-080"]),
+  imp: S_("Implementation",2,"The cohort goes through the program: sessions, mentors and investment analyst support.",
+    ["Attendance and completion","Session ratings and feedback","Mentor, investor and analyst support"],
+    "Some programs use a standard tracker and others build their own. Feedback forms are built per program and stored in separate sheets. Mentor and analyst support is rarely logged.",
+    "One tracker per program type covers attendance, feedback and support hours, linked by company ID. Session feedback uses one form, so ratings compare across programs.",
+    ["collect|Standard tracker and session feedback form","auto|Feedback flows into the tracker","dash|Cohort progress view with companies at risk","analyze|Mentor matching from company needs"],
+    ["Google Sheets","Google Forms"],["Program tracker","Cohort progress view"],["VC-005","VC-006","VC-009","VC-013","VC-093"]),
+  pdd: S_("Peer due diligence",1,"Entrepreneurs review and rank each other over several rounds. The top-ranked companies become eligible for investment.",
+    ["Peer scores by round and criterion","Final ranking","Handoff of top-ranked companies to investments"],
+    "Rankings run on the Rank platform, and results stay separate from the rest of the program data.",
+    "Ranking results link to each company record, and top-ranked companies move into the investment pipeline with their full record.",
+    ["auto|Ranking results added to the company record","analyze|Link between peer rank and later performance","gov|Anonymized results shared back with entrepreneurs"],
+    ["Rank platform","Google Sheets"],["Ranking results","Handoff to investments"],["VC-002","VC-093"]),
+  me: S_("M&E",1,"Outcomes are measured against the baseline, following the funder’s requirements.",
+    ["Post-program and follow-up surveys (3, 6, 12 months) where required","Revenue, capital raised, jobs and operating status","NPS and founder-rated contribution"],
+    "Requirements vary by funder. Surveys run in Abaca or Google Sheets, are built by hand for each program and stored separately, so results are hard to compare with the baseline or across programs.",
+    "A standard survey base from the agreed metrics, easy to tailor per funder. Responses link to the company ID, and PitchBook fills in follow-on capital and operating status.",
+    ["collect|Standard survey base and schedule","clean|Responses matched to the baseline by company ID","auto|Scheduled PitchBook pull for alumni","analyze|Pre/post and cohort comparison","history|Results compared with past cohorts"],
+    ["Abaca","Google Forms","PitchBook"],["Outcome dataset","Pre/post analysis"],["VC-021","VC-024","VC-028","VC-029","VC-036","VC-010","VC-069"]),
+  rep: S_("Reporting",1,"Results are reported to the funder, in impact reports and in new proposals.",
+    ["Indicators against targets","Charts and case examples","Figures for proposals and impact reports"],
+    "Figures come from Upmetrics, manual calculations and separate sheets. Formats vary by funder, and reports and charts are rebuilt each time.",
+    "Report and proposal figures come from the same dataset as the dashboard, with a shared visual library for charts.",
+    ["analyze|Indicators against targets from the program dataset","viz|Shared chart library in Flourish, Datawrapper and Canva","history|Past results pulled for proposals and impact reports","gov|Checks on what can be shared outside VilCap"],
+    ["Upmetrics","Google Sheets","Flourish","Canva"],["Funder report","Impact report figures"],["VC-082","VC-025","VC-067"]),
+  clo: S_("Closure",0,"The program closes. Its data is archived and alumni move into follow-up.",
+    ["Final dataset with definitions","Cost per beneficiary","Alumni list for follow-up"],
+    "Program data stays in the program’s own folders, with no standard handover, so it is hard to find later.",
+    "A closure checklist: the final dataset is cleaned and added to the VilCap archive, cost per beneficiary is calculated, and alumni join the annual follow-up.",
+    ["clean|Final dataset cleaned","history|Program data added to the VilCap archive","analyze|Benchmarks for the next program","gov|Retention and access rules applied"],
+    ["Google Drive","VilData"],["Archived dataset","Benchmarks"],["VC-080","VC-036"]),
+
+  kick_eso: S_("Kick-off",1,"Program design, partner targets and the measurement plan are agreed with the funder.",
+    ["Targets by partner and country","Indicators for partners and the entrepreneurs they reach","Partner reporting calendar"],
+    "Partner targets are set in the proposal, and partner reporting requirements are defined per program and often change during delivery.",
+    "A two-level measurement plan, for partners and for the entrepreneurs they reach, with reporting templates ready before partners are selected.",
+    ["collect|Two-level measurement plan","analyze|Partner targets from past cost per beneficiary","gov|Data sharing agreement template for partners"],
+    ["Proposal","Google Drive"],["Measurement plan","Partner reporting template"],["VC-015","VC-053"]),
+  app_eso: S_("Partner applications",1,"Entrepreneur support organizations (ESOs) apply to join the program.",
+    ["Organization profile, country and reach","Programs delivered and entrepreneurs served","How they collect participant data"],
+    "Applications are collected in Abaca or Google Forms, with questions set per program.",
+    "A standard ESO application with fixed fields, so partners compare across programs and years.",
+    ["collect|Standard ESO application","clean|Partner registry with one ID per organization"],
+    ["Abaca","Google Forms"],["Partner registry"],["VC-053"]),
+  src_eso: S_("Sourcing",1,"Outreach to ESOs in the target countries.",
+    ["Applications by country against target","Known ESOs not yet reached"],
+    "Outreach relies on networks and partner lists kept by each program.",
+    "A shared ESO registry shows who we know, how they performed, and gaps by country.",
+    ["research|ESO landscape mapping by country","dash|Applications by country against target"],
+    ["Google Sheets"],["Sourcing view"],["VC-011"]),
+  sel_eso: S_("Partner selection",1,"ESOs are scored and selected, with due diligence on capacity and finances.",
+    ["Scores for each criterion","Due diligence results","Past performance with VilCap"],
+    "Scoring happens in separate sheets, and past performance is hard to find.",
+    "Scoring in one sheet, with past results pulled from the registry and allocations linked to targets.",
+    ["collect|Standard partner scoring rubric","analyze|Past performance and cost per beneficiary by partner"],
+    ["Google Sheets"],["Partner list and allocations"],["VC-053"]),
+  trn: S_("ESO training",1,"VilCap trains partner teams to deliver programs and support entrepreneurs.",
+    ["Attendance and session ratings","Capability before and after training"],
+    "Attendance and feedback sit in separate sheets per program, and capability change is rarely measured.",
+    "Standard feedback forms plus a short capability check before and after training.",
+    ["collect|Capability check before and after","collect|Standard session feedback form","dash|Partner training progress view"],
+    ["Google Forms","Google Sheets"],["Training tracker"],["VC-053","VC-009"]),
+  cod: S_("Co-delivery",0,"Partners run entrepreneurship programs. Data comes in from many partners at the same time.",
+    ["Entrepreneur applications by partner","Enrollment, attendance and completion","Partner spend against allocation"],
+    "Each partner reports in its own format, and consolidation across partners is manual.",
+    "Partners submit through one template or intake form, eligibility is checked at intake, and submissions consolidate automatically into one dataset.",
+    ["collect|Shared partner template and intake form","auto|Automatic consolidation of submissions","clean|Duplicate and eligibility checks at intake","dash|Partner dashboard: enrolled, completed, cost per beneficiary","gov|Rules for participant personal data"],
+    ["Google Forms","Google Sheets","LMS"],["Consolidated dataset","Partner dashboard"],["VC-001","VC-002","VC-045"]),
+  me_eso: S_("M&E",1,"Outcomes are measured for partners and for the entrepreneurs they reach.",
+    ["Partner outcomes","Entrepreneur outcomes against baseline","Completion and cost per beneficiary by partner"],
+    "Partner and entrepreneur results are collected separately and combined by hand at reporting time.",
+    "One outcome dataset links each entrepreneur to the partner that served them, so results compare by partner and country.",
+    ["collect|Standard partner and entrepreneur surveys","analyze|Results by partner, country and model"],
+    ["Google Forms","Google Sheets"],["Partner comparison"],["VC-056","VC-021"]),
+  me_trn: S_("M&E",1,"Outcomes are measured at the partner level.",
+    ["Capability change after training","Partner feedback"],
+    "Results come from a closing survey or interviews, with formats set per program.",
+    "A standard partner survey at the end of training and six months later.",
+    ["collect|Standard partner follow-up survey","analyze|Capability comparison before and after"],
+    ["Google Forms"],["Partner outcome summary"],["VC-053","VC-010"]),
+  rdy: S_("Readiness support",1,"Companies work on investment readiness through diagnostics, milestone planning and one-to-one support.",
+    ["Readiness diagnostic","Milestone plans and progress","Capital needs: amount, type, timing"],
+    "Diagnostics run through VIRAL and Capital Explorer on Abaca, and VIRAL is likely to retire soon. Milestone plans sit in separate files.",
+    "A readiness diagnostic stays in place after VIRAL, milestone progress is tracked per company, and capital needs use the segmentation factors.",
+    ["collect|Readiness diagnostic to replace VIRAL","analyze|Capital needs segmentation","dash|Readiness progress by company"],
+    ["Abaca (VIRAL, Capital Explorer)","Google Sheets"],["Readiness scores","Milestone tracker"],["VC-030","VC-032","VC-070","VC-072","VC-075","VC-076"]),
+  match: S_("Investor matching",0,"Companies meet investors through demo days, introductions and one-to-one meetings.",
+    ["Investor list with focus and ticket size","Introductions and outcomes"],
+    "Investor lists and introductions are tracked by each program team, if at all.",
+    "One investor list across programs, with introductions and outcomes logged per company.",
+    ["clean|Shared investor list","analyze|Matching by stage, sector and ticket size"],
+    ["Google Sheets","PitchBook"],["Investor list","Deal log"],["VC-006","VC-022"]),
+  me_ir: S_("M&E",1,"Capital raised after the program is measured against the baseline.",
+    ["Capital raised by type","Time to funding"],
+    "Follow-up depends on the funder, and capital raised is self-reported.",
+    "Standard follow-up at 6 and 12 months, checked against PitchBook and the deal log.",
+    ["collect|Standard follow-up survey","analyze|Capital raised by type and time to funding"],
+    ["Google Forms","PitchBook"],["Outcome dataset"],["VC-021","VC-024"]),
+
+  pipe: S_("Pipeline",1,"Potential investments are collected from our programs, partners and external databases.",
+    ["Company profile and source","Stage, sector and geography","Program results, where available"],
+    "Investment applications come in through Airtable. Alumni data from several sheets is reviewed by hand to support sourcing, with PitchBook for external data.",
+    "One pipeline fed from Airtable, VilData and PitchBook, with duplicates removed by company ID and program results attached.",
+    ["auto|Program alumni added from VilData","clean|Duplicates removed across sources","history|Past alumni performance used in sourcing","dash|Pipeline view with conversion by source"],
+    ["Airtable","VilData","PitchBook"],["Pipeline register"],["VC-022","VC-091"]),
+  scout: S_("Scouting",1,"The team looks for companies and opportunities in target sectors and regions.",
+    ["Sector and market scans","Comparable deals"],
+    "Scans are done by hand for each deal or theme.",
+    "Repeatable sector scans that reuse program and PitchBook data.",
+    ["research|Sector scans and market maps","analyze|Comparable deals and valuations"],
+    ["PitchBook","Google Sheets"],["Sector scans"],["VC-034","VC-035"]),
+  screen: S_("Screening",1,"Companies are checked against investment criteria before due diligence.",
+    ["Checks against investment criteria","Capital needs profile"],
+    "Screening is case by case. The current process is to be confirmed with the investment team.",
+    "A standard screening sheet and a capital needs profile that shows which instrument fits.",
+    ["collect|Standard screening sheet","analyze|Capital needs segmentation"],
+    ["Airtable","Google Sheets"],["Screening record"],["VC-070","VC-072","VC-075","VC-076"]),
+  dd: S_("Due diligence",1,"Detailed review of financials, market, team and impact.",
+    ["Financial statements and KPIs","Financial model","Impact data"],
+    "Data requests and reviews are handled deal by deal, with investment analyst support where available.",
+    "A standard data request list and financial review template, with benchmarks against the portfolio.",
+    ["collect|Standard due diligence request list","analyze|Financial review and benchmarking","gov|Secure handling of company data"],
+    ["Data rooms","Google Sheets"],["DD summary"],["VC-038","VC-089"]),
+  deal: S_("Investment",1,"The investment committee decides, terms are agreed and capital is deployed.",
+    ["Amount, instrument and terms","Capital deployed"],
+    "Deal records sit with the investment team in Airtable. Format to be confirmed.",
+    "Every deal logged in one register that feeds capital deployed and portfolio figures.",
+    ["collect|Deal register with standard fields","dash|Capital deployed by year, region and instrument"],
+    ["Airtable"],["Deal register"],["VC-064","VC-090","VC-091"]),
+  mon: S_("Portfolio monitoring",0,"Portfolio companies report on performance after investment.",
+    ["Quarterly revenue, cash and runway","Jobs, capital raised and impact"],
+    "Post-investment reporting runs through Airtable, but formats vary and some companies don’t report.",
+    "A quarterly form with fixed KPIs, automatic reminders and a portfolio view with early warning flags.",
+    ["collect|Quarterly form with fixed KPIs","auto|Reminders and on-time tracking","dash|Portfolio view with early warning flags"],
+    ["Airtable"],["Portfolio dataset"],["VC-089","VC-028","VC-040","VC-041"]),
+  irep: S_("Reporting",1,"Portfolio results are reported to investors, the board and funders.",
+    ["Portfolio performance","Impact results"],
+    "Reports are assembled by hand from company reports.",
+    "Portfolio reports draw on the portfolio dataset and the shared visual library.",
+    ["analyze|Portfolio performance summary","viz|Standard portfolio visuals"],
+    ["Airtable","Google Sheets"],["Portfolio report"],["VC-090","VC-091","VC-088"]),
+  exit: S_("Follow-on and exit",1,"Follow-on rounds, repayments, exits and write-offs.",
+    ["Follow-on capital","Exit or repayment outcomes","Operating status"],
+    "Outcomes are tracked by the investment team. Format to be confirmed.",
+    "Outcomes recorded in the portfolio dataset and the archive, feeding survival rates and returns.",
+    ["analyze|Survival, returns and follow-on rates","history|Portfolio history kept in the archive","research|What predicts success across the portfolio"],
+    ["PitchBook","Airtable"],["Outcome record"],["VC-035","VC-029"])
+};
+
+var MODELS = {
+  acc_pdd:{name:"Accelerator with peer DD", short:"Accelerator, peer DD", desc:"A cohort accelerator where entrepreneurs evaluate and rank each other. The top-ranked companies become eligible for investment.", stages:["kick","app","src","sel","imp","pdd","me","rep","clo"]},
+  acc:{name:"Accelerator", short:"Accelerator", desc:"A cohort accelerator with training, mentors and investment analyst support, without peer ranking.", stages:["kick","app","src","sel","imp","me","rep","clo"]},
+  eso_cod:{name:"ESO program with co-delivery", short:"ESO co-delivery", desc:"VilCap trains entrepreneur support organizations (ESOs), who then deliver programs to entrepreneurs.", stages:["kick_eso","app_eso","src_eso","sel_eso","trn","cod","me_eso","rep","clo"]},
+  eso_trn:{name:"ESO training", short:"ESO training", desc:"VilCap builds the capacity of ESO partners, with no entrepreneur-facing delivery.", stages:["kick_eso","app_eso","src_eso","sel_eso","trn","me_trn","rep","clo"]},
+  ir:{name:"Investment readiness", short:"Investment readiness", desc:"Prepares companies to raise capital through diagnostics, milestone planning and investor connections.", stages:["kick","app","src","sel","rdy","match","me_ir","rep","clo"]},
+  inv:{name:"Investments", short:"Investments", desc:"From pipeline to exit. Tools follow the learning architecture system map; the steps will be confirmed with the investment team.", stages:["pipe","scout","screen","dd","deal","mon","irep","exit"]}
+};
+
+var FLOW = [
+  {eyebrow:"Created in", title:"Sources", mid:false, nodes:[
+    ["Abaca","Applications, VIRAL and Capital Explorer, exported to VilData by hand","Syncs to program sheets and one record per company",""],
+    ["Google Sheets and Forms","In-program and post-program surveys, built per program","A standard survey base from the agreed metrics","Wish list 3"],
+    ["Rank platform","Peer rankings kept apart from program data","Linked to each company record",""],
+    ["Airtable","Investment applications and post-investment reporting, on their own","Linked by company ID, with fixed quarterly KPIs",""],
+    ["PitchBook","Pulled by hand when a report needs it","Scheduled pull for all alumni",""],
+    ["Partner submissions","Each ESO reports in its own format","One template and intake form",""]]},
+  {eyebrow:"Standard layer", title:"Owned by the data function", mid:true, nodes:[
+    ["One record per company","Not in place","One ID from application to exit","Wish list 1"],
+    ["Agreed metrics and question bank","Agreed in September, not yet in forms","In every form, survey and tracker","Wish list 3"],
+    ["Cleaning and validation","Manual, when a report is due","Checks on every sync, each figure traceable","Wish list 4"],
+    ["VilCap archive, 2009 onward","Spread across old tools and folders","All past data in one documented archive","History project"],
+    ["Access and consent","Informal","Set by role and data type","Wish list 2"]]},
+  {eyebrow:"Used for", title:"Outputs", mid:false, nodes:[
+    ["Live Pyramid read","Static sheets and Upmetrics","Live, filterable down to one company","Wish list 5 and 6"],
+    ["Impact reports","Different metrics each year","The same agreed metrics every year",""],
+    ["Proposals and donor reports","Figures gathered by hand each time","Ready figures by program, sector and country",""],
+    ["Program and investment decisions","Based on partial data","Selection, progress and portfolio views",""]]}
+];
+
+var TRAIL = [
+  ["Application",[["VC-012 sector","Agritech"],["VC-045 women_led","Yes"],["VC-016 revenue_to_date","$42,000"],["VC-026 ft_employees","6"]]],
+  ["Selection",[["VC-002 selected","Yes"],["review_score","4.2 / 5"]]],
+  ["Program",[["VC-009 session_rating","4.6 / 5"],["VC-006 connections","7"]]],
+  ["12-month follow-up",[["VC-021 capital_raised","$150,000 debt"],["VC-036 status","Active"],["VC-026 ft_employees","9"]]],
+  ["Investments",[["pipeline_source","Program"],["VC-064 instrument","Revenue share"]]]
+];
+
+/* ---------- illustrative dashboard data ---------- */
+var REGIONS = [["all","All regions"],["mena","MENA"],["ssa","Sub-Saharan Africa"],["us","US"],["na","North America (ex-US)"],["latam","Latin America"],["eu","Europe"],["asia","Asia"]];
+var RKEYS = ["mena","ssa","us","na","latam","eu","asia"];
+var RNAME = {}; REGIONS.forEach(function(r){RNAME[r[0]]=r[1];});
+var TODAY = 8.97; // month index for 30 Sep
+var PROGRAMS = [
+  {n:"Fintech Accelerator 2026", r:"mena", m:"acc_pdd", st:5, tl:"on", ph:[[1,3.5],[3.5,9.3],[9.3,11.6]], dl:[6,11.5], p:18, tg:20, apps:640, wp:31, wc:39, rt:4.6, el:.58, ret:.95},
+  {n:"Digital Skills Partner Program", r:"mena", m:"eso_cod", st:5, tl:"risk", ph:[[0,2],[2,10.5],[10.5,12]], dl:[3,6.5,9.5], p:1240, tg:2000, apps:2480, wp:44, wc:47, rt:4.4, el:.66, ret:.88},
+  {n:"Climate Accelerator 2026", r:"ssa", m:"acc", st:3, tl:"on", ph:[[6,10],[10,12]], dl:[], p:0, tg:15, apps:910, wp:36, wc:null, rt:null, el:.61, ret:null},
+  {n:"Women Founders Readiness", r:"ssa", m:"ir", st:5, tl:"late", ph:[[0,2.5],[2.5,9.5],[9.5,12]], dl:[5,8.6], p:24, tg:25, apps:1120, wp:96, wc:100, rt:4.5, el:.55, ret:.96},
+  {n:"Health Innovation Accelerator", r:"us", m:"acc_pdd", st:6, tl:"on", ph:[[1,3],[3,8.5],[8.5,11]], dl:[7,10], p:12, tg:12, apps:420, wp:44, wc:50, rt:4.7, el:.63, ret:1},
+  {n:"Future of Work Accelerator", r:"us", m:"acc", st:6, tl:"risk", ph:[[0,2],[2,7],[7,10]], dl:[4,9.5], p:14, tg:15, apps:380, wp:41, wc:43, rt:4.3, el:.6, ret:.93},
+  {n:"Rural Entrepreneurs Accelerator", r:"na", m:"acc", st:4, tl:"on", ph:[[2,4.5],[4.5,10.5],[10.5,12]], dl:[8], p:15, tg:15, apps:240, wp:47, wc:53, rt:4.8, el:.64, ret:1},
+  {n:"Inclusive Fintech Readiness", r:"latam", m:"ir", st:4, tl:"on", ph:[[3,5.5],[5.5,11],[11,12]], dl:[8.5], p:20, tg:20, apps:560, wp:39, wc:45, rt:4.5, el:.57, ret:.95},
+  {n:"Impact Readiness Europe", r:"eu", m:"ir", st:1, tl:"on", ph:[[8,11],[11,12]], dl:[], p:0, tg:15, apps:180, wp:42, wc:null, rt:null, el:.62, ret:null},
+  {n:"Tech Founders Partner Program", r:"asia", m:"eso_cod", st:5, tl:"risk", ph:[[1,3],[3,10],[10,12]], dl:[6,9.2], p:860, tg:1200, apps:1900, wp:52, wc:55, rt:4.2, el:.6, ret:.9}
+];
+var PHASE_COLS = ["var(--s1)","var(--s2)","var(--s3)"], PHASE_NAMES = ["Applications and selection","Delivery","M&E and reporting"];
+var COUNTRIES = {
+  mena:[["Egypt",.34],["Morocco",.22],["Jordan",.16],["Saudi Arabia",.14],["Tunisia",.14]],
+  ssa:[["Kenya",.3],["Nigeria",.28],["Ghana",.18],["Rwanda",.12],["South Africa",.12]],
+  us:[["Georgia",.3],["California",.26],["New York",.24],["Texas",.2]],
+  na:[["Canada",.72],["Mexico",.28]],
+  latam:[["Colombia",.35],["Brazil",.3],["Chile",.2],["Peru",.15]],
+  eu:[["United Kingdom",.4],["Netherlands",.33],["Germany",.27]],
+  asia:[["Pakistan",.38],["Indonesia",.24],["India",.22],["Philippines",.16]]
+};
+var RP = {
+  mena:{alumni:1200, ent:[380,520,610,700], cap:[[1.8,.9,.6,.3],[2.4,1.2,.7,.4],[2.1,1.6,.9,.5],[3.0,1.9,1.0,.6]], dep:[.3,.3,.5,.6,.4], port:9, surv:[94,86,78,71], raised:31},
+  ssa:{alumni:1900, ent:[520,610,760,880], cap:[[2.6,1.4,1.3,.5],[3.1,1.9,1.5,.6],[3.4,2.4,1.6,.7],[3.9,2.8,1.8,.9]], dep:[.6,.8,.9,1.1,.7], port:22, surv:[93,84,76,69], raised:36},
+  us:{alumni:1400, ent:[160,150,140,130], cap:[[6.2,1.1,.8,.7],[5.4,1.3,.9,.8],[4.8,1.6,1.0,.9],[5.6,1.8,1.1,1.0]], dep:[1.0,1.2,1.1,1.3,.9], port:31, surv:[96,89,82,77], raised:52},
+  na:{alumni:150, ent:[10,14,15,18], cap:[[.4,.2,.2,.1],[.5,.2,.2,.1],[.6,.3,.2,.1],[.7,.3,.3,.1]], dep:[.1,.1,.1,.2,.1], port:3, surv:[95,88,81,75], raised:44},
+  latam:{alumni:520, ent:[60,70,80,90], cap:[[1.2,.5,.3,.2],[1.4,.6,.4,.3],[1.6,.8,.4,.3],[1.9,.9,.5,.4]], dep:[.3,.3,.4,.4,.3], port:8, surv:[94,85,78,72], raised:38},
+  eu:{alumni:180, ent:[30,25,20,15], cap:[[.6,.3,.4,.1],[.7,.3,.4,.1],[.8,.4,.5,.2],[.9,.4,.5,.2]], dep:[0,.1,.1,.2,.1], port:4, surv:[96,90,84,78], raised:41},
+  asia:{alumni:640, ent:[240,380,520,690], cap:[[.9,.6,.5,.3],[1.1,.8,.6,.3],[1.3,.9,.7,.4],[1.6,1.1,.8,.5]], dep:[.2,.2,.3,.3,.2], port:6, surv:[93,85,77,70], raised:29}
+};
+var CAPTYPES = ["Equity","Debt","Grants","Other"], CAPYEARS = ["2022","2023","2024","2025"];
+
+/* ---------- helpers ---------- */
+var NS = "http://www.w3.org/2000/svg";
+function $(s, el){return (el||document).querySelector(s);}
+function $$(s, el){return Array.prototype.slice.call((el||document).querySelectorAll(s));}
+function E(tag, cls, text){var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e;}
+function S(tag, a, p){var e=document.createElementNS(NS,tag); if(a){for(var k in a){var v=a[k]; if((k==="fill"||k==="stroke")&&typeof v==="string"&&v.indexOf("var(")===0) e.style[k]=v; else e.setAttribute(k,v);}} if(p) p.appendChild(e); return e;}
+function T(p,x,y,s,cls,anchor){var t=S("text",{x:x,y:y,"class":cls||"t-ax","text-anchor":anchor||"start"},p); t.textContent=s; return t;}
+function pad(n){return String(n).padStart(2,"0");}
+function fmtInt(v){return Math.round(v).toLocaleString("en-US");}
+function pct(v){return Math.round(v)+"%";}
+function fmtM(v){return "$"+(v>=10?v.toFixed(0):v.toFixed(1))+"M";}
+function sum(a){return a.reduce(function(x,y){return x+y;},0);}
+function delay(el,ms){el.style.animationDelay=ms+"ms"; return el;}
+var MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function mdate(m){var mi=Math.min(11,Math.floor(m)), d=Math.max(1,Math.min(28,Math.round((m-mi)*30))); return d+" "+MONTHS[mi];}
+var REDUCE = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+function go(id){var el=document.getElementById(id); if(el) el.scrollIntoView({behavior:REDUCE?"auto":"smooth", block:"start"});}
+function lum(c){
+  var m=/var\((--[^)]+)\)/.exec(c); if(m) c=getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
+  var h=/^#([0-9a-f]{6})$/i.exec(c); if(!h) return 0.2;
+  var n=parseInt(h[1],16), rgb=[(n>>16)&255,(n>>8)&255,n&255].map(function(v){v/=255; return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});
+  return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];
+}
+var ICON = {
+  check:'<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  warn:'<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2.2 14.6 13.6H1.4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.6v3.1M8 11.7v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  late:'<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.8V8l2.2 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  issue:'<svg class="iss" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 5.2v4.4M9 12.4v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  ok:'<svg class="ok" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="currentColor"/><path d="M5.4 9.2l2.4 2.4 4.6-5" fill="none" style="stroke:var(--surface)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+var STATUS = {on:["On track",ICON.check],risk:["At risk",ICON.warn],late:["Delayed",ICON.late]};
+function statusEl(tl){var s=E("span","status st-"+tl); s.innerHTML=STATUS[tl][1]; s.appendChild(document.createTextNode(STATUS[tl][0])); return s;}
+function meter(lvl, target){var m=E("span","m"+(target?" tg":"")); m.setAttribute("aria-hidden","true"); for(var i=0;i<3;i++){var b=E("i"); if(i<lvl) b.className="f"; m.appendChild(b);} return m;}
+function mchip(id){var d=MET[id]; if(!d) return null; var c=E("span","mchip"+(d[2]?" pri":"")); c.appendChild(E("i",TRIAGE[d[1]][1])); c.appendChild(E("code",null,id)); c.appendChild(document.createTextNode(d[0])); c.title=TRIAGE[d[1]][0]+(d[2]?" · leadership priority":""); return c;}
+
+/* ---------- motion: plays when an element comes into view; content is visible without it ---------- */
+var animObs = (!REDUCE && "IntersectionObserver" in window) ? new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){animObs.unobserve(e.target); play(e.target);}});},{rootMargin:"0px 0px 8% 0px"}) : null;
+function play(el){
+  if(REDUCE) return;
+  el.classList.remove("done","play"); void el.offsetWidth; el.classList.add("play");
+  $$("[data-count]",el).forEach(countUp);
+  clearTimeout(el._t); el._t=setTimeout(function(){el.classList.remove("play"); el.classList.add("done");},2200);
+}
+function watch(el){if(animObs&&el) animObs.observe(el);}
+function countUp(el){
+  var txt=el.getAttribute("data-final")||el.textContent; el.setAttribute("data-final",txt);
+  var m=/^([^\d]*)([\d,]*\.?\d+)(.*)$/.exec(txt); if(!m) return;
+  var pre=m[1], num=m[2], suf=m[3], dec=(num.split(".")[1]||"").length, target=parseFloat(num.replace(/,/g,"")), comma=num.indexOf(",")>=0;
+  var t0=null, dur=1100;
+  function fmt(v){return comma? v.toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec}) : v.toFixed(dec);}
+  function step(ts){if(!t0) t0=ts; var k=Math.min(1,(ts-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=pre+fmt(target*e)+suf; if(k<1) requestAnimationFrame(step); else el.textContent=txt;}
+  requestAnimationFrame(step);
+}
+function riseAll(sel){ $$(sel).forEach(function(el){ el.classList.add("rise"); var sib=el.parentNode?Array.prototype.indexOf.call(el.parentNode.children,el):0; delay(el,Math.min(sib,6)*70); watch(el); }); }
+
+/* ---------- tooltip ---------- */
+var tip=E("div","tip"); tip.hidden=true; document.body.appendChild(tip);
+function showTip(x,y,title,rows){
+  tip.replaceChildren(E("div","tip-h",title));
+  rows.forEach(function(r){var row=E("div","tip-r"); if(r[2]){var k=E("i","tip-k"); k.style.background=r[2]; row.appendChild(k);} row.appendChild(E("b",null,r[1])); if(r[0]) row.appendChild(E("span",null,r[0])); tip.appendChild(row);});
+  tip.hidden=false;
+  var w=tip.offsetWidth, h=tip.offsetHeight, L=x+14, Tp=y+14;
+  if(L+w>window.innerWidth-8) L=x-w-14; if(Tp+h>window.innerHeight-8) Tp=y-h-14;
+  tip.style.left=Math.max(8,L)+"px"; tip.style.top=Math.max(8,Tp)+"px";
+}
+function hideTip(){tip.hidden=true;}
+function hover(el,title,rows,focusable){
+  if(focusable!==false) el.setAttribute("tabindex","0");
+  el.classList.add("hit");
+  el.setAttribute("aria-label", title+": "+rows.map(function(r){return (r[0]?r[0]+" ":"")+r[1];}).join(", "));
+  el.addEventListener("pointermove",function(e){showTip(e.clientX,e.clientY,title,rows);});
+  el.addEventListener("pointerleave",hideTip);
+  el.addEventListener("focus",function(){var b=el.getBoundingClientRect(); showTip(b.left+b.width/2,b.top,title,rows);});
+  el.addEventListener("blur",hideTip);
+}
+window.addEventListener("scroll",hideTip,{passive:true});
+
+/* ---------- charts ---------- */
+var drawers=[], staticDrawers=[], drillDraw=null;
+function cardW(box){return Math.max(240, Math.floor(box.getBoundingClientRect().width)||320);}
+function hPath(x,y,w,h){var r=Math.min(4,w); return "M"+x+" "+y+"H"+(x+w-r)+"Q"+(x+w)+" "+y+" "+(x+w)+" "+(y+r)+"V"+(y+h-r)+"Q"+(x+w)+" "+(y+h)+" "+(x+w-r)+" "+(y+h)+"H"+x+"Z";}
+function vPath(x,y,w,h,round){var r=round?Math.min(4,h,w/2):0; return "M"+x+" "+(y+h)+"V"+(y+r)+"Q"+x+" "+y+" "+(x+r)+" "+y+"H"+(x+w-r)+"Q"+(x+w)+" "+y+" "+(x+w)+" "+(y+r)+"V"+(y+h)+"Z";}
+function niceStep(v){if(v<=0) return 1; var p=Math.pow(10,Math.floor(Math.log10(v))), n=v/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p;}
+function fill(el,c){el.style.fill=c; return el;}
+function cls(el,c,ms){el.classList.add(c); if(ms!=null) el.style.animationDelay=ms+"ms"; return el;}
+function chartCard(parent, o){
+  var card=E("div","ccard"), head=E("div","ccard-h"), tt=E("div");
+  tt.appendChild(E("h5","ccard-t",o.title)); if(o.sub) tt.appendChild(E("p","ccard-s",o.sub)); head.appendChild(tt);
+  if(o.empty){card.appendChild(head); card.appendChild(E("p","empty",o.empty)); parent.appendChild(card); return card;}
+  var box=E("div","cbox"), tbl=E("div","ctable"); tbl.hidden=true;
+  var btn=E("button","tbtn","Table"); btn.type="button"; btn.setAttribute("aria-pressed","false"); head.appendChild(btn);
+  card.appendChild(head); card.appendChild(box); card.appendChild(tbl);
+  if(o.legend){var lg=E("div","leg"); o.legend.forEach(function(l){var s=E("span"); if(l[2]!=="none"){var i=E("i",l[2]||""); if(l[1]) i.style.background=l[1]; s.appendChild(i);} s.appendChild(document.createTextNode(l[0])); lg.appendChild(s);}); card.appendChild(lg);}
+  if(o.note) card.appendChild(E("p","ccard-n",o.note));
+  var t=E("table"), th=E("thead"), tr=E("tr"); o.table.cols.forEach(function(c){tr.appendChild(E("th",null,c));}); th.appendChild(tr); t.appendChild(th);
+  var tb=E("tbody"); o.table.rows.forEach(function(r){var row=E("tr"); r.forEach(function(c){row.appendChild(E("td",null,c));}); tb.appendChild(row);}); t.appendChild(tb); tbl.appendChild(t);
+  parent.appendChild(card);
+  var draw=function(){if(!box.hidden){box.replaceChildren(); o.draw(box);}};
+  btn.addEventListener("click",function(){var on=btn.getAttribute("aria-pressed")!=="true"; btn.setAttribute("aria-pressed",on); btn.textContent=on?"Chart":"Table"; box.hidden=on; tbl.hidden=!on; if(!on){draw(); play(card);}});
+  drawers.push(draw); draw(); watch(card);
+  return card;
+}
+function hstack(box, rows, keys, cols, o){
+  var W=cardW(box), lw=Math.min(o.lw||150, Math.round(W*.42)), vw=36, rh=o.rh||34, bh=o.bh||16, H=rows.length*rh;
+  var s=S("svg",{width:W,height:H,viewBox:"0 0 "+W+" "+H,role:"img","aria-label":o.aria},box);
+  var max=Math.max.apply(null,rows.map(function(r){return sum(r.parts);})), span=W-lw-vw;
+  var ink=cols.map(function(c){return lum(c)>.4?"t-in-d":"t-in-l";});
+  rows.forEach(function(r,i){
+    var y=i*rh+(rh-bh)/2, x=lw, tot=sum(r.parts);
+    T(s,0,y+bh/2+4.5,r.label,"t-lbl");
+    var nz=r.parts.map(function(v,j){return v>0?j:-1;}).filter(function(j){return j>=0;}), lastJ=nz[nz.length-1];
+    r.parts.forEach(function(v,j){
+      if(v<=0) return;
+      var w=span*v/max, last=j===lastJ, ww=Math.max(1,w-(last?0:2));
+      var el=last? S("path",{d:hPath(x,y,ww,bh)},s) : S("rect",{x:x,y:y,width:ww,height:bh},s); fill(el,cols[j]); cls(el,"gx",i*90+j*140);
+      if(ww>20) cls(T(s,x+ww/2,y+bh/2+4,String(v),ink[j],"middle"),"fade",i*90+j*140+400);
+      var hit=S("rect",{x:x,y:y-5,width:Math.max(ww,6),height:bh+10},s); fill(hit,"transparent");
+      hover(hit,r.label,[[keys[j],String(v),cols[j]],["total",String(tot)]]);
+      x+=w;
+    });
+    cls(T(s,lw+span*tot/max+6,y+bh/2+4.5,String(tot),"t-val"),"fade",i*90+700);
+  });
+}
+function hbar(box, rows, o){
+  var W=cardW(box), lw=Math.min(o.lw||120, Math.round(W*.5)), vw=54, rh=30, bh=14, H=rows.length*rh;
+  var s=S("svg",{width:W,height:H,viewBox:"0 0 "+W+" "+H,role:"img","aria-label":o.aria},box);
+  var max=Math.max.apply(null,rows.map(function(r){return r.v;}).concat([1])), span=W-lw-vw;
+  rows.forEach(function(r,i){
+    var y=i*rh+(rh-bh)/2, w=Math.max(2,span*r.v/max);
+    T(s,0,y+bh/2+4.5,r.label,"t-lbl");
+    cls(fill(S("path",{d:hPath(lw,y,w,bh)},s), o.color||"var(--s1)"),"gx",i*80);
+    cls(T(s,lw+w+8,y+bh/2+4.5,o.fmt(r.v),"t-val"),"fade",i*80+450);
+    var hit=S("rect",{x:0,y:i*rh,width:W,height:rh},s); fill(hit,"transparent");
+    hover(hit,r.label,[["",o.fmt(r.v)]]);
+    if(o.onClick){hit.style.cursor="pointer"; hit.addEventListener("click",function(){o.onClick(r);}); hit.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault(); o.onClick(r);}});}
+  });
+}
+function colChart(box, cats, series, o){
+  var W=cardW(box), H=210, ml=46, mr=6, mt=20, mb=24, w=W-ml-mr, h=H-mt-mb;
+  var s=S("svg",{width:W,height:H,viewBox:"0 0 "+W+" "+H,role:"img","aria-label":o.aria},box);
+  var totals=cats.map(function(_,i){return sum(series.map(function(se){return se.vals[i];}));});
+  var top=Math.max.apply(null,totals)*1.12, step=niceStep(top/5), nt=Math.ceil(top/step-1e-9), max=nt*step;
+  for(var k=0;k<=nt;k++){var y=mt+h-h*k/nt; S("line",{x1:ml,x2:W-mr,y1:y,y2:y,stroke:k===0?"var(--line-2)":"var(--line)","stroke-width":1},s); T(s,ml-6,y+3.5,o.tick(step*k),"t-ax","end");}
+  var band=w/cats.length, bw=Math.min(28,band*.46);
+  cats.forEach(function(c,i){
+    var x=ml+band*i+(band-bw)/2, acc=0, topIdx=-1;
+    series.forEach(function(se,j){if(se.vals[i]>0) topIdx=j;});
+    series.forEach(function(se,j){var v=se.vals[i]; if(v<=0) return; var hh=h*v/max, y0=mt+h-h*(acc+v)/max, gap=acc>0?2:0; cls(fill(S("path",{d:vPath(x,y0,bw,Math.max(.5,hh-gap),j===topIdx)},s), se.color),"gy",i*110+j*90); acc+=v;});
+    T(s,x+bw/2,H-7,c,"t-ax","middle");
+    cls(T(s,x+bw/2,mt+h-h*totals[i]/max-7,o.fmt(totals[i]),"t-val","middle"),"fade",i*110+600);
+    var hit=S("rect",{x:ml+band*i,y:mt,width:band,height:h},s); fill(hit,"transparent");
+    hover(hit,c,series.map(function(se){return [se.key,o.fmt(se.vals[i]),se.color];}).concat([["total",o.fmt(totals[i])]]));
+  });
+}
+function survChart(box, labels, vals, ref){
+  var W=cardW(box), H=210, ml=40, mr=44, mt=16, mb=24, w=W-ml-mr, h=H-mt-mb, lo=50;
+  var s=S("svg",{width:W,height:H,viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Share of alumni still operating after the program"},box);
+  function Y(v){return mt+h-h*(v-lo)/(100-lo);} function X(i){return ml+w*i/(labels.length-1);}
+  [50,75,100].forEach(function(t){S("line",{x1:ml,x2:W-mr,y1:Y(t),y2:Y(t),stroke:t===50?"var(--line-2)":"var(--line)","stroke-width":1},s); T(s,ml-6,Y(t)+3.5,t+"%","t-ax","end");});
+  S("line",{x1:ml,x2:W-mr,y1:Y(ref),y2:Y(ref),stroke:"var(--ink-2)","stroke-width":1.2,"stroke-dasharray":"4 4"},s);
+  T(s,ml+8,Y(ref)+15,"Peer reference "+ref+"%","t-mut");
+  var d=vals.map(function(v,i){return (i?"L":"M")+X(i)+" "+Y(v);}).join("");
+  cls(fill(S("path",{d:d+"L"+X(vals.length-1)+" "+Y(lo)+"L"+X(0)+" "+Y(lo)+"Z","fill-opacity":.12},s),"var(--s1)"),"fade",300);
+  var ln=S("path",{d:d,fill:"none","stroke-width":2.4,"stroke-linejoin":"round","stroke-linecap":"round",pathLength:1},s); ln.style.stroke="var(--s1)"; cls(ln,"draw",0);
+  var cross=S("line",{x1:0,x2:0,y1:mt,y2:mt+h,stroke:"var(--ink-3)","stroke-width":1,opacity:0},s);
+  vals.forEach(function(v,i){cls(fill(S("circle",{cx:X(i),cy:Y(v),r:i===vals.length-1?5:3.5,stroke:"var(--surface)","stroke-width":2},s),"var(--s1)"),"pop",200+i*300); T(s,X(i),H-7,labels[i],"t-ax","middle");});
+  cls(T(s,X(vals.length-1)+9,Y(vals[vals.length-1])+4,vals[vals.length-1]+"%","t-val"),"fade",1100);
+  cls(T(s,X(0)+2,Y(vals[0])-10,vals[0]+"%","t-val"),"fade",200);
+  var st=w/(labels.length-1);
+  vals.forEach(function(v,i){
+    var bx=Math.max(ml,X(i)-st/2), bw=Math.min(W-mr,X(i)+st/2)-bx;
+    var hit=S("rect",{x:bx,y:mt,width:bw,height:h},s); fill(hit,"transparent");
+    hover(hit,labels[i]+" after program",[["still operating",v+"%","var(--s1)"],["peer reference",ref+"%","var(--ink-2)"]]);
+    hit.addEventListener("pointerenter",function(){cross.setAttribute("x1",X(i)); cross.setAttribute("x2",X(i)); cross.setAttribute("opacity",1);});
+    hit.addEventListener("pointerleave",function(){cross.setAttribute("opacity",0);});
+  });
+}
+function ribbon(box, steps){
+  var W=cardW(box), H=200, top=50, bot=H-6, bw=14, n=steps.length, gap=(W-bw)/(n-1), mid=(top+bot)/2, maxH=bot-top;
+  var s=S("svg",{width:W,height:H,viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Application funnel"},box);
+  var max=steps[0].v||1;
+  function geo(i){var hh=Math.max(3,maxH*steps[i].v/max); return {x:i*gap, y:mid-hh/2, h:hh};}
+  for(var i=0;i<n-1;i++){
+    var a=geo(i), b=geo(i+1);
+    cls(fill(S("path",{d:"M"+(a.x+bw)+" "+a.y+"C"+((a.x+bw+b.x)/2)+" "+a.y+" "+((a.x+bw+b.x)/2)+" "+b.y+" "+b.x+" "+b.y+"L"+b.x+" "+(b.y+b.h)+"C"+((a.x+bw+b.x)/2)+" "+(b.y+b.h)+" "+((a.x+bw+b.x)/2)+" "+(a.y+a.h)+" "+(a.x+bw)+" "+(a.y+a.h)+"Z","fill-opacity":.16},s),"var(--s1)"),"fade",300+i*180);
+    cls(T(s,(a.x+bw+b.x)/2,mid+4,Math.round(100*steps[i+1].v/steps[i].v)+"%","t-mut","middle"),"fade",600+i*180);
+  }
+  steps.forEach(function(st,i){
+    var g=geo(i), anchor=i===0?"start":(i===n-1?"end":"middle"), tx=i===0?g.x:(i===n-1?g.x+bw:g.x+bw/2);
+    cls(fill(S("rect",{x:g.x,y:g.y,width:bw,height:g.h,rx:3},s),"var(--s1)"),"gyc",i*180);
+    T(s,tx,14,st.label,"t-ax",anchor); T(s,tx,36,fmtInt(st.v),"t-big",anchor);
+    var hit=S("rect",{x:Math.max(0,g.x-gap/2+bw/2),y:0,width:Math.min(gap,W),height:H},s); fill(hit,"transparent");
+    var rows=[["",fmtInt(st.v)]]; if(i) rows.push(["of the previous step",Math.round(100*st.v/steps[i-1].v)+"%"]);
+    hover(hit,st.label,rows);
+  });
+}
+function waffles(box, groups){
+  var W=cardW(box), per=W/groups.length, cell=Math.max(6,Math.min(11,Math.floor((Math.min(per-24,150)-18)/10))), g=2, side=cell*10+g*9, H=side+60;
+  var s=S("svg",{width:W,height:H,viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Women-led share of applicants and selected cohorts"},box);
+  groups.forEach(function(gr,k){
+    var x0=k*per+(per-side)/2, filled=Math.round(gr.v);
+    T(s,x0,14,gr.label,"t-ax");
+    for(var i=0;i<100;i++){var r=Math.floor(i/10), c=i%10; var el=fill(S("rect",{x:x0+c*(cell+g),y:22+r*(cell+g),width:cell,height:cell,rx:2},s), i<filled?"var(--s1)":"var(--line)"); if(i<filled) cls(el,"pop",k*200+i*7);}
+    T(s,x0,22+side+28,pct(gr.v),"t-big");
+    var hit=S("rect",{x:x0,y:22,width:side,height:side},s); fill(hit,"transparent");
+    hover(hit,gr.label,[["women-led",pct(gr.v),"var(--s1)"]]);
+  });
+}
+function spark(vals){
+  var w=64,h=22,s=S("svg",{width:w,height:h,viewBox:"0 0 "+w+" "+h,"aria-hidden":"true"});
+  var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals), rg=(mx-mn)||1;
+  var pts=vals.map(function(v,i){return [2+(w-6)*i/(vals.length-1), h-3-(h-6)*(v-mn)/rg];});
+  var ln=S("path",{d:pts.map(function(p,i){return (i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1);}).join(""),fill:"none","stroke-width":1.6,"stroke-linecap":"round","stroke-linejoin":"round",pathLength:1},s); ln.style.stroke="var(--ink-3)"; cls(ln,"draw",200);
+  var last=pts[pts.length-1]; cls(fill(S("circle",{cx:last[0],cy:last[1],r:2.8},s),"var(--accent-fill)"),"pop",1100);
+  return s;
+}
+function ring(pctv, color){
+  var sz=88, r=36, c=2*Math.PI*r, s=S("svg",{width:sz,height:sz,viewBox:"0 0 "+sz+" "+sz,"aria-hidden":"true"});
+  S("circle",{cx:sz/2,cy:sz/2,r:r,fill:"none",stroke:"rgba(255,255,255,.16)","stroke-width":9},s);
+  var len=c*pctv/100, arc=S("circle",{cx:sz/2,cy:sz/2,r:r,fill:"none","stroke-width":9,"stroke-linecap":"round","stroke-dasharray":len+" "+c,transform:"rotate(-90 "+sz/2+" "+sz/2+")"},s);
+  arc.style.stroke=color; arc.style.setProperty("--c",len); arc.classList.add("ringarc");
+  T(s,sz/2,sz/2+7,pctv+"%","t-ring","middle");
+  return s;
+}
+
+/* ---------- overview strip ---------- */
+var map={model:"acc_pdd", i:3, svc:null};
+function renderState(){
+  var leg=$("#state-legend");
+  [0,1,2].forEach(function(l){var s=E("span"); s.appendChild(meter(l)); s.appendChild(E("span","lv"+l,LV[l])); leg.appendChild(s);});
+  var t=E("span"); t.appendChild(meter(3,true)); t.appendChild(E("span","lv3","Target")); leg.appendChild(t);
+  var rows=[["acc","Programs","Standard accelerator"],["inv","Investments","Steps to confirm with the investment team"]], box=$("#state-rows"), foot=[];
+  rows.forEach(function(r){
+    var M=MODELS[r[0]], row=E("div","srow"), lab=E("div","srow-l"); lab.appendChild(E("b",null,r[1])); lab.appendChild(E("span",null,r[2])); row.appendChild(lab);
+    var cells=E("div","scells"), cnt=[0,0,0];
+    M.stages.forEach(function(id,i){
+      var s=STAGES[id]; cnt[s.lvl]++;
+      var b=E("button","scell rise"); b.type="button"; b.setAttribute("aria-label", s.name+", today: "+LV[s.lvl]+". Open in the lifecycle map");
+      b.appendChild(E("span","no",pad(i+1))); b.appendChild(E("span","nm",s.name)); b.appendChild(meter(s.lvl)); b.appendChild(E("span","lv lv"+s.lvl,LV[s.lvl]));
+      b.addEventListener("click",function(){map.model=r[0]; map.i=i; map.svc=null; renderMap(); go("lifecycle");});
+      delay(b,i*55); cells.appendChild(b); watch(b);
+    });
+    row.appendChild(cells); box.appendChild(row);
+    foot.push(r[1]+": "+cnt[0]+" of "+M.stages.length+" stages have no process in place and "+cnt[1]+" run ad hoc.");
+  });
+  $("#state-foot").textContent=foot.join(" ")+" Select a stage to open it in the lifecycle map.";
+}
+
+/* ---------- why now ---------- */
+function renderMetricsCard(){
+  var tcols=["var(--s3)","var(--s1)","var(--s2)"], tkeys=["Capture now","Derivable now","New collection"];
+  var rows=LEVEL_COUNTS.map(function(l){return {label:l[0], parts:l[1]};});
+  chartCard($("#metrics-card"),{title:"58 agreed metrics, by Pyramid level",sub:"Taken forward from 85+ in the metrics map · how ready each one is today",
+    draw:function(b){hstack(b,rows,tkeys,tcols,{aria:"Agreed metrics by Pyramid level and readiness",lw:168,rh:36,bh:18});},
+    legend:tkeys.map(function(k,i){return [k,tcols[i]];}),
+    note:"36 of 58 can be reported from data we hold or can derive today. The other 22 need new questions or surveys, including every metric in the top two levels.",
+    table:{cols:["Level"].concat(tkeys).concat(["Total"]), rows:LEVEL_COUNTS.map(function(l){return [l[0]].concat(l[1].map(String)).concat([String(sum(l[1]))]);})}});
+}
+var EST=[["Application exports, cleaning and VilData updates",12,"h per program",12,"programs"],["Building surveys and cleaning responses",16,"h per program",12,"programs"],["Consolidating partner submissions",40,"h per ESO program",3,"ESO programs"],["Funder and donor reports built from scratch",24,"h per report",24,"reports"],["Figures for proposals and one-off questions",4,"h per week",48,"weeks"]];
+function renderEstimator(){
+  var t=$("#est"); t.replaceChildren();
+  var th=E("thead"), hr=E("tr"); ["Task","Hours","","Volume","","Per year"].forEach(function(c){hr.appendChild(E("th",null,c));}); th.appendChild(hr); t.appendChild(th);
+  var tb=E("tbody");
+  EST.forEach(function(r,i){
+    var tr=E("tr"); tr.appendChild(E("td",null,r[0]));
+    var a=E("td"), ia=E("input"); ia.type="number"; ia.min="0"; ia.id="est-h-"+i; ia.value=r[1]; ia.setAttribute("aria-label",r[0]+", hours"); a.appendChild(ia); tr.appendChild(a);
+    tr.appendChild(E("td",null,r[2]));
+    var b=E("td"), ib=E("input"); ib.type="number"; ib.min="0"; ib.id="est-c-"+i; ib.value=r[3]; ib.setAttribute("aria-label",r[0]+", volume"); b.appendChild(ib); tr.appendChild(b);
+    tr.appendChild(E("td",null,r[4]));
+    var o=E("td"); o.id="est-o-"+i; tr.appendChild(o);
+    [ia,ib].forEach(function(inp){inp.addEventListener("input",calcEst);});
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb); calcEst();
+}
+function calcEst(){
+  var tot=0;
+  EST.forEach(function(r,i){var h=parseFloat($("#est-h-"+i).value)||0, c=parseFloat($("#est-c-"+i).value)||0, v=h*c; tot+=v; $("#est-o-"+i).textContent=fmtInt(v)+" h";});
+  var big=$("#est-total"); big.removeAttribute("data-final"); big.textContent=fmtInt(tot)+" hours";
+  $("#est-sub").textContent="About "+Math.round(tot/37.5)+" working weeks a year, or "+(tot/1650).toFixed(1)+" of a full-time role.";
+}
+
+/* ---------- flow ---------- */
+var flowMode="today";
+function renderFlow(){
+  var g=$("#flow-grid"); g.replaceChildren(); g.className="flow "+flowMode;
+  FLOW.forEach(function(col,ci){
+    if(ci>0){var a=E("div","arrow"); a.innerHTML=ICON.arrow; g.appendChild(a);}
+    var c=E("div","fcol"+(col.mid?" mid":"")), h=E("div","fcol-h"); h.appendChild(E("span","lbl",col.eyebrow)); h.appendChild(E("h3",null,col.title)); c.appendChild(h);
+    col.nodes.forEach(function(n,ni){
+      var d=E("div","fnode"), holder=E("span"); holder.innerHTML=flowMode==="today"?ICON.issue:ICON.ok;
+      d.appendChild(holder.firstChild); d.appendChild(E("b",null,n[0])); d.appendChild(E("span",null,flowMode==="today"?n[1]:n[2]));
+      if(n[3]) d.appendChild(E("em",null,n[3]));
+      delay(d,ci*120+ni*50); c.appendChild(d);
+    });
+    g.appendChild(c);
+  });
+  $("#flow-today").setAttribute("aria-pressed",flowMode==="today"); $("#flow-target").setAttribute("aria-pressed",flowMode!=="today");
+}
+$("#flow-today").addEventListener("click",function(){flowMode="today"; renderFlow();});
+$("#flow-target").addEventListener("click",function(){flowMode="target"; renderFlow();});
+function renderTrail(){
+  var box=$("#trail");
+  TRAIL.forEach(function(t,i){var s=E("div","tstep rise"); s.appendChild(E("h5",null,t[0])); var dl=E("dl"); t[1].forEach(function(f){dl.appendChild(E("dt",null,f[0])); dl.appendChild(E("dd",null,f[1]));}); s.appendChild(dl); delay(s,i*120); box.appendChild(s); watch(s);});
+}
+
+/* ---------- lifecycle ---------- */
+function renderControls(){
+  var mw=$("#models");
+  Object.keys(MODELS).forEach(function(k){
+    var b=E("button","seg",MODELS[k].name); b.type="button"; b.dataset.k=k;
+    b.addEventListener("click",function(){var cur=MODELS[map.model].stages[map.i]; map.model=k; var idx=MODELS[k].stages.indexOf(cur); map.i=idx>=0?idx:Math.min(map.i,MODELS[k].stages.length-1); renderMap();});
+    mw.appendChild(b);
+  });
+  var sw=$("#svc-hl"), all=E("button","sv","All stages"); all.type="button"; all.dataset.k=""; all.addEventListener("click",function(){map.svc=null; renderMap();}); sw.appendChild(all);
+  Object.keys(SERVICES).forEach(function(k){var b=E("button","sv",SERVICES[k].short); b.type="button"; b.dataset.k=k; b.addEventListener("click",function(){map.svc=(map.svc===k?null:k); renderMap();}); sw.appendChild(b);});
+}
+function renderMap(){
+  var M=MODELS[map.model];
+  $$("#models .seg").forEach(function(b){b.setAttribute("aria-pressed", b.dataset.k===map.model);});
+  $$("#svc-hl .sv").forEach(function(b){b.setAttribute("aria-pressed", b.dataset.k===(map.svc||""));});
+  $("#lc-desc").textContent=M.desc;
+  var rail=$("#rail"); rail.replaceChildren();
+  M.stages.forEach(function(id,i){
+    var s=STAGES[id], b=E("button","st"); b.type="button"; b.setAttribute("aria-pressed", i===map.i);
+    if(map.svc){var has=s.acts.some(function(a){return a[0]===map.svc;}); b.classList.add(has?"hit":"dim");}
+    b.setAttribute("aria-label","Stage "+(i+1)+", "+s.name+", today: "+LV[s.lvl]);
+    b.appendChild(E("span","dot",pad(i+1))); b.appendChild(E("span","nm",s.name)); b.appendChild(meter(s.lvl));
+    b.addEventListener("click",function(){map.i=i; renderMap();});
+    rail.appendChild(b);
+  });
+  renderDetail();
+}
+function renderDetail(){
+  var M=MODELS[map.model], n=M.stages.length, s=STAGES[M.stages[map.i]], d=$("#detail"); d.replaceChildren();
+  var head=E("div","d-head"); head.appendChild(E("span","lbl","Stage "+pad(map.i+1)+" of "+pad(n)+" · "+M.name)); head.appendChild(E("h3",null,s.name)); head.appendChild(E("p",null,s.sum)); d.appendChild(head);
+  var cmp=E("div","cmp"), now=E("div","now"), nx=E("div","next");
+  var l1=E("div","cmp-l"); l1.appendChild(E("span","lbl","Today")); l1.appendChild(meter(s.lvl)); l1.appendChild(E("span","lv lv"+s.lvl,LV[s.lvl])); now.appendChild(l1); now.appendChild(E("p",null,s.today));
+  var l2=E("div","cmp-l"); l2.appendChild(E("span","lbl","With a data function")); l2.appendChild(meter(3,true)); l2.appendChild(E("span","lv lv3","Standard")); nx.appendChild(l2); nx.appendChild(E("p",null,s.target));
+  cmp.appendChild(now); cmp.appendChild(nx); d.appendChild(cmp);
+  var body=E("div","d-body"), a=E("div"), b=E("div");
+  a.appendChild(E("span","lbl","Data needed")); var ul=E("ul","needs"); s.needs.forEach(function(x){ul.appendChild(E("li",null,x));}); a.appendChild(ul);
+  b.appendChild(E("span","lbl","Data work")); var ol=E("ul","acts");
+  s.acts.forEach(function(x){var li=E("li"); if(map.svc===x[0]) li.className="hit"; li.appendChild(E("span","tag",SERVICES[x[0]].short)); li.appendChild(E("span",null,x[1])); ol.appendChild(li);});
+  b.appendChild(ol); body.appendChild(a); body.appendChild(b); d.appendChild(body);
+  if(s.mets.length){
+    var mm=E("div","d-mets"), mh=E("div","d-mets-h"); mh.appendChild(E("span","lbl","Agreed metrics fed by this stage"));
+    var tl=E("div","tleg"); ["c","d","n"].forEach(function(k){var sp=E("span"); sp.appendChild(E("i",TRIAGE[k][1])); sp.appendChild(document.createTextNode(TRIAGE[k][0])); tl.appendChild(sp);}); tl.appendChild(E("span",null,"Bold: leadership priority")); mh.appendChild(tl); mm.appendChild(mh);
+    var ch=E("div","mchips"); s.mets.forEach(function(id){var c=mchip(id); if(c) ch.appendChild(c);}); mm.appendChild(ch); d.appendChild(mm);
+  }
+  var f=E("div","d-foot");
+  [["Tools and sources",s.tools],["Outputs",s.outs]].forEach(function(kv){var k=E("div","kv"); k.appendChild(E("span","lbl",kv[0])); var p=E("div","pills"); kv[1].forEach(function(t){p.appendChild(E("span","pill",t));}); k.appendChild(p); f.appendChild(k);});
+  var nav=E("div","stepnav"), pv=E("button","sbtn","Previous stage"), nxb=E("button","sbtn","Next stage"); pv.type="button"; nxb.type="button"; pv.disabled=map.i===0; nxb.disabled=map.i===n-1;
+  pv.addEventListener("click",function(){map.i--; renderMap();}); nxb.addEventListener("click",function(){map.i++; renderMap();});
+  nav.appendChild(pv); nav.appendChild(nxb); f.appendChild(nav); d.appendChild(f);
+}
+
+/* ---------- services ---------- */
+function renderServices(){
+  var used={}; Object.keys(MODELS).forEach(function(m){MODELS[m].stages.forEach(function(id){used[id]=1;});});
+  var ids=Object.keys(used), total=ids.length, box=$("#svcs");
+  Object.keys(SERVICES).forEach(function(k,i){
+    var sv=SERVICES[k], c=ids.filter(function(id){return STAGES[id].acts.some(function(a){return a[0]===k;});}).length;
+    var card=E("div","svc rise"+(sv.isNew?" new":"")); card.appendChild(E("span","tag",sv.short)); card.appendChild(E("h4",null,sv.name)); card.appendChild(E("p",null,sv.desc));
+    var f=E("div","svc-f"); f.appendChild(E("span",null,c+" of "+total+" stages"));
+    var btn=E("button","link",sv.isNew?"See the project":"Show on the map"); btn.type="button";
+    btn.addEventListener("click",function(){if(sv.isNew){go("history");} else {map.svc=k; renderMap(); go("lifecycle");}});
+    f.appendChild(btn); card.appendChild(f); delay(card,(i%3)*80); box.appendChild(card); watch(card);
+  });
+}
+
+/* ---------- history ---------- */
+function renderCoverage(){
+  var card=E("div","ccard"), head=E("div","ccard-h"), tt=E("div");
+  tt.appendChild(E("h5","ccard-t","What our impact reports have published, 2021 to 2025")); tt.appendChild(E("p","ccard-s","26 headline metrics, from the metrics map review")); head.appendChild(tt); card.appendChild(head);
+  var cov=E("div","cov"), hd=E("div","cov-h"); ["Metric","2021","2022","2023","2024","2025","Years"].forEach(function(c){hd.appendChild(E("span",null,c));}); cov.appendChild(hd);
+  COVER.forEach(function(r,ri){
+    var row=E("div","cov-r"+(r[3]?" pri":"")), nm=E("span","nm"); nm.appendChild(E("code",null,r[0])); nm.appendChild(document.createTextNode(r[1])); nm.title=r[0]+" "+r[1]; row.appendChild(nm);
+    r[2].forEach(function(v,yi){var dot=E("i",v===2?"f":(v===1?"p":"")); dot.title=(2021+yi)+": "+(v===2?"reported":(v===1?"partial":"not reported")); if(v) cls(dot,"pop",ri*28+yi*40); row.appendChild(dot);});
+    row.appendChild(E("b",null,r[2].filter(function(v){return v>0;}).length+"/5")); cov.appendChild(row);
+  });
+  card.appendChild(cov);
+  var lg=E("div","leg"); [["Reported","cf"],["Partial","cp"],["Not reported","cn"]].forEach(function(l){var s=E("span"); s.appendChild(E("i",l[1])); s.appendChild(document.createTextNode(l[0])); lg.appendChild(s);}); lg.appendChild(E("span",null,"Bold: leadership priority")); card.appendChild(lg);
+  card.appendChild(E("p","ccard-n","Only 3 of 26 appear in all five reports, and 15 appear in two or fewer. The archive rebuilds each series from source data, so trends can be shown for every year."));
+  $("#cov-card").appendChild(card); watch(card);
+}
+
+/* ---------- request log ---------- */
+function renderLog(){
+  var qcols=["var(--q1)","var(--q2)","var(--q3)"], qk=["Quick","Standard","Project"];
+  var rows=[{label:"Programs",parts:[12,7,2]},{label:"Investments",parts:[3,3,1]},{label:"Leadership",parts:[2,1,1]},{label:"Partnerships",parts:[1,1,0]}];
+  chartCard($("#log-chart"),{title:"Requests by team and tier",
+    draw:function(b){hstack(b,rows,qk,qcols,{aria:"Requests by team and tier",lw:96,rh:32,bh:16});},
+    legend:qk.map(function(k,i){return [k,qcols[i]];}),
+    table:{cols:["Team"].concat(qk).concat(["Total"]), rows:rows.map(function(r){return [r.label].concat(r.parts.map(String)).concat([String(sum(r.parts))]);})}});
+  var t=$("#log-table"), th=E("thead"), hr=E("tr"); ["ID","Request","Team","Tier","Status"].forEach(function(c){hr.appendChild(E("th",null,c));}); th.appendChild(hr); t.appendChild(th);
+  var tb=E("tbody");
+  [["DR-0142","Applications by gender and country, against targets","Programs","Standard","done"],["DR-0141","Portfolio KPIs for the Q3 board pack","Investments","Standard","prog"],["DR-0140","Survival rate for 2021 to 2023 alumni","Leadership","Project","scope"],["DR-0139","Consolidate partner submissions, cohort 2","Programs","Standard","done"],["DR-0138","Country figures for a new proposal","Partnerships","Quick","done"]].forEach(function(r){
+    var tr=E("tr"); r.slice(0,4).forEach(function(c){tr.appendChild(E("td",null,c));});
+    var td=E("td"); td.appendChild(E("span","spill sp-"+r[4],{done:"Delivered",prog:"In progress",scope:"Scoping"}[r[4]])); tr.appendChild(td); tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+}
+
+/* ---------- dashboard ---------- */
+var region="all", selProg=0;
+function regionData(r){
+  var keys=r==="all"?RKEYS:[r], progs=PROGRAMS.filter(function(p){return keys.indexOf(p.r)>=0;});
+  var d={progs:progs, count:progs.length, on:0, risk:0, late:0, sel:0, cohorts:0, funnel:[0,0,0,0]};
+  var wpN=0,wpD=0,wcN=0,wcD=0;
+  progs.forEach(function(p){
+    d[p.tl]++;
+    if(p.p>0){d.sel+=p.p; d.cohorts++; d.funnel[0]+=p.apps; d.funnel[1]+=Math.round(p.apps*p.el); d.funnel[2]+=p.p; d.funnel[3]+=Math.round(p.p*p.ret);}
+    if(p.wp!=null&&p.apps>0){wpN+=p.apps*p.wp; wpD+=p.apps;}
+    if(p.wc!=null&&p.p>0){wcN+=p.p*p.wc; wcD+=p.p;}
+  });
+  d.wp=wpD?wpN/wpD:null; d.wc=wcD?wcN/wcD:null;
+  function wavg(fn){var n=0,t=0; keys.forEach(function(k){n+=fn(RP[k])*RP[k].alumni; t+=RP[k].alumni;}); return n/t;}
+  function sumArr(fn,len){var out=[]; for(var i=0;i<len;i++) out.push(sum(keys.map(function(k){return fn(RP[k])[i];}))); return out;}
+  d.surv=[0,1,2,3].map(function(i){return Math.round(wavg(function(x){return x.surv[i];}));});
+  d.raised=wavg(function(x){return x.raised;});
+  d.dep=sumArr(function(x){return x.dep;},5);
+  d.ent=sumArr(function(x){return x.ent;},4).concat([d.sel]);
+  d.port=sum(keys.map(function(k){return RP[k].port;}));
+  d.cap=CAPYEARS.map(function(_,y){return [0,1,2,3].map(function(t){return sum(keys.map(function(k){return RP[k].cap[y][t];}));});});
+  d.capTot=d.cap.map(sum);
+  if(r==="all") d.where=RKEYS.map(function(k){return {label:k==="na"?"N. America (ex-US)":RNAME[k], key:k, v:sum(PROGRAMS.filter(function(p){return p.r===k;}).map(function(p){return p.p;}))};}).filter(function(x){return x.v>0;});
+  else d.where=COUNTRIES[r].map(function(c){return {label:c[0], v:Math.round(d.sel*c[1])};}).filter(function(x){return x.v>0;});
+  return d;
+}
+function renderRegionFilter(){
+  var box=$("#region-filter");
+  REGIONS.forEach(function(r){var b=E("button","fchip",r[1]); b.type="button"; b.setAttribute("role","radio"); b.dataset.r=r[0]; b.addEventListener("click",function(){setRegion(r[0]);}); box.appendChild(b);});
+  box.addEventListener("keydown",function(e){
+    if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
+    var i=REGIONS.findIndex(function(r){return r[0]===region;}); i=(i+(e.key==="ArrowRight"?1:-1)+REGIONS.length)%REGIONS.length;
+    setRegion(REGIONS[i][0]); $('#region-filter [data-r="'+region+'"]').focus(); e.preventDefault();
+  });
+  syncRegion();
+}
+function setRegion(r){region=r; var d=regionData(r); if(d.progs.indexOf(PROGRAMS[selProg])<0&&d.progs.length) selProg=PROGRAMS.indexOf(d.progs[0]); syncRegion(); renderDash();}
+function syncRegion(){$$("#region-filter .fchip").forEach(function(b){var on=b.dataset.r===region; b.setAttribute("aria-checked",on); b.tabIndex=on?0:-1;});}
+
+function pm(label,value,sub,id,trend){
+  var c=E("div","pm"); c.appendChild(E("span","k",label)); var row=E("div","row"), v=E("span","v",value); v.setAttribute("data-count",""); row.appendChild(v); if(trend) row.appendChild(spark(trend)); c.appendChild(row);
+  if(sub) c.appendChild(E("span","s",sub)); c.appendChild(E("code",null,id)); return c;
+}
+function pmPending(label,state,id){var c=E("div","pm pending"); c.appendChild(E("span","k",label)); c.appendChild(E("span","v",state)); c.appendChild(E("code",null,id)); return c;}
+function renderPyramid(d){
+  var box=$("#pyr"); box.replaceChildren();
+  var capChg=Math.round(100*(d.capTot[3]-d.capTot[2])/d.capTot[2]);
+  var LEVELS=[
+    {w:"w1",name:"Change in the World",q:"Is capital becoming a better enabler of thriving communities?",items:[pmPending("People impacted","New collection needed","VC-040"),pmPending("Network power","New approach needed","VC-087")]},
+    {w:"w2",name:"Systemic Influence",q:"Is capital moving more efficiently because of our work?",items:[pmPending("AUM influenced (estimated)","Method to be built","VC-088")]},
+    {w:"w3",name:"Business Health",q:"Are businesses becoming stronger?",items:[
+      pm("Follow-on capital raised, 2025",fmtM(d.capTot[3]),(capChg>=0?"+":"")+capChg+"% on 2024","VC-021",d.capTot),
+      pm("Alumni operating at 24 months",pct(d.surv[1]),"At 36 months: "+pct(d.surv[2]),"VC-029"),
+      pm("Raised capital within 12 months",pct(d.raised),"Share of 2025 alumni","VC-024")]},
+    {w:"w4",name:"VilCap’s Direct Contribution",q:"Are we creating the capabilities, capital and insights needed?",items:[
+      pm("Entrepreneurs supported, 2026",fmtInt(d.sel),d.cohorts?"In "+d.cohorts+" cohort"+(d.cohorts===1?"":"s"):"No cohort yet","VC-002",d.ent),
+      pm("Programs running",String(d.count),d.on+" on track · "+d.risk+" at risk · "+d.late+" delayed","VC-015"),
+      pm("Capital deployed, 2026",fmtM(d.dep[4]),"2025: "+fmtM(d.dep[3]),"VC-064",d.dep),
+      pm("Portfolio companies",String(d.port),"Active investments","VC-091")]}
+  ];
+  LEVELS.forEach(function(L,i){
+    var l=E("div","lvl rise "+L.w), h=E("div","lvl-h"); h.appendChild(E("b",null,L.name)); h.appendChild(E("span",null,L.q)); l.appendChild(h);
+    var ms=E("div","pms"); L.items.forEach(function(it){ms.appendChild(it);}); l.appendChild(ms); delay(l,(3-i)*110); box.appendChild(l); watch(l);
+  });
+}
+function renderGoals(){
+  var g=$("#goals"); g.replaceChildren(); g.appendChild(E("h5",null,"2030 goals · org-wide"));
+  [[22,"var(--amber)","11,100+ of 50,000","entrepreneurs supported"],[19,"#9DD3C8","$9.6B of $50B","purpose-suited capital"]].forEach(function(x){
+    var r=E("div","goal"); r.appendChild(ring(x[0],x[1])); var t=E("div"); t.appendChild(E("b",null,x[2])); t.appendChild(E("span",null,x[3])); r.appendChild(t); g.appendChild(r);
+  });
+  g.appendChild(E("small",null,"Real figures from the 2025 impact report (VC-082). Everything else in this dashboard is illustrative."));
+  watch(g);
+}
+function renderGantt(d){
+  var g=$("#gantt"); g.replaceChildren();
+  var head=E("div","g-head"); head.appendChild(E("div","lbl g-hl","Program"));
+  var ht=E("div","g-htrack"), q=E("div","g-q"), mo=E("div","g-m");
+  ["Q1","Q2","Q3","Q4"].forEach(function(x){q.appendChild(E("span",null,x));});
+  MONTHS.forEach(function(x){mo.appendChild(E("span",null,x));});
+  var now=E("span","g-now","Today · 30 Sep"); now.style.left=(100*TODAY/12)+"%";
+  ht.appendChild(q); ht.appendChild(mo); ht.appendChild(now); head.appendChild(ht); g.appendChild(head);
+  d.progs.forEach(function(p,ri){
+    var idx=PROGRAMS.indexOf(p), row=E("button","g-row"); row.type="button"; row.setAttribute("aria-pressed",idx===selProg); row.dataset.idx=idx;
+    row.setAttribute("aria-label",p.n+", "+RNAME[p.r]+", "+STATUS[p.tl][0]+". Show detail");
+    var nm=E("span","g-name"), nb=E("b",null,p.n); nb.title=p.n; nm.appendChild(nb);
+    var sub=E("span","g-sub"); sub.appendChild(E("span",null,RNAME[p.r])); sub.appendChild(statusEl(p.tl)); nm.appendChild(sub); row.appendChild(nm);
+    var tr=E("span","g-track");
+    var start=p.ph[0][0], end=p.ph[p.ph.length-1][1], spn=end-start;
+    var sp=E("span","gspan"); sp.style.left=(100*start/12)+"%"; sp.style.width=(100*spn/12)+"%"; delay(sp,ri*70);
+    p.ph.forEach(function(ph,j){
+      if(ph[1]<=ph[0]) return;
+      var parts = ph[1]<=TODAY? [[ph[0],ph[1],0]] : (ph[0]>=TODAY? [[ph[0],ph[1],1]] : [[ph[0],TODAY,0],[TODAY,ph[1],1]]);
+      parts.forEach(function(pt,k){
+        var seg=E("span","gseg"+(pt[2]?" fut":"")), gapPx=(k===parts.length-1&&j<p.ph.length-1)?2:0;
+        seg.style.left=(100*(pt[0]-start)/spn)+"%"; seg.style.width="calc("+(100*(pt[1]-pt[0])/spn)+"% - "+gapPx+"px)"; seg.style.background=PHASE_COLS[j];
+        sp.appendChild(seg);
+      });
+    });
+    hover(sp,p.n,p.ph.map(function(ph,j){return [PHASE_NAMES[j],mdate(ph[0])+" to "+mdate(Math.min(ph[1],11.99)),PHASE_COLS[j]];}),false);
+    tr.appendChild(sp);
+    p.dl.forEach(function(m){var dm=E("span","gdm"+(m<TODAY?" past":"")); dm.style.left=(100*m/12)+"%"; hover(dm,"Funder report",[[m<TODAY?"submitted":"due",mdate(m)]],false); tr.appendChild(dm);});
+    var td=E("span","gtoday"); td.style.left=(100*TODAY/12)+"%"; tr.appendChild(td);
+    row.appendChild(tr);
+    row.addEventListener("click",function(){selProg=idx; $$("#gantt .g-row").forEach(function(x){x.setAttribute("aria-pressed", x===row);}); renderDrill(true);});
+    g.appendChild(row);
+  });
+  watch(g);
+}
+function renderDrill(animate){
+  var box=$("#drill"); box.replaceChildren(); drillDraw=null; var p=PROGRAMS[selProg]; if(!p) return; var M=MODELS[p.m];
+  var a=E("div");
+  a.appendChild(E("span","lbl","Program detail")); a.appendChild(E("h4",null,p.n));
+  var meta=E("div","dmeta"); meta.appendChild(E("span","pill",RNAME[p.r])); meta.appendChild(E("span","pill",M.short)); var sp=E("span","pill"); sp.appendChild(statusEl(p.tl)); meta.appendChild(sp); a.appendChild(meta);
+  var stg=E("div","dstage"), dots=E("div","sdots"); M.stages.forEach(function(_,i){dots.appendChild(E("i",i<p.st?"d":(i===p.st?"c":"")));}); stg.appendChild(dots);
+  stg.appendChild(E("span","muted","Stage "+pad(p.st+1)+" of "+pad(M.stages.length)+" · "+STAGES[M.stages[p.st]].name)); a.appendChild(stg);
+  var st=E("div","dstats");
+  [[fmtInt(p.apps),"Applications"],[p.p?fmtInt(p.p)+" of "+fmtInt(p.tg):"Not yet","Selected vs target"],[p.wc!=null?pct(p.wc):pct(p.wp),p.wc!=null?"Women-led cohort (applicants "+pct(p.wp)+")":"Women-led applicants"],[p.rt!=null?p.rt.toFixed(1)+" / 5":"No sessions","Session rating"]].forEach(function(x){var s=E("div","dstat"), b=E("b",null,x[0]); b.setAttribute("data-count",""); s.appendChild(b); s.appendChild(E("span",null,x[1])); st.appendChild(s);});
+  a.appendChild(st);
+  var next=p.dl.filter(function(m){return m>TODAY;})[0];
+  a.appendChild(E("span","muted",next!=null?"Next funder report due "+mdate(next):"No funder report due this year"));
+  var btn=E("button","link","Open this stage in the lifecycle map →"); btn.type="button"; btn.style.justifySelf="start";
+  btn.addEventListener("click",function(){map.model=p.m; map.i=p.st; map.svc=null; renderMap(); go("lifecycle");}); a.appendChild(btn);
+  box.appendChild(a);
+  var b=E("div"); b.appendChild(E("span","lbl","Program funnel")); var fb=E("div","cbox"); b.appendChild(fb); box.appendChild(b);
+  if(p.p>0){
+    var st4=[{label:"Applied",v:p.apps},{label:"Eligible",v:Math.round(p.apps*p.el)},{label:"Selected",v:p.p},{label:"Retained",v:Math.round(p.p*p.ret)}];
+    drillDraw=function(){fb.replaceChildren(); hbar(fb,st4,{fmt:fmtInt,aria:"Program funnel",lw:80,color:"var(--s1)"});}; drillDraw();
+  } else fb.appendChild(E("p","empty","Cohort not selected yet. "+fmtInt(p.apps)+" applications so far."));
+  if(animate) play(box); else watch(box);
+}
+function renderReach(d){
+  var gr=$("#g-reach"); gr.replaceChildren(); var f=d.funnel, fl=["Applied","Eligible","Selected","Retained"];
+  if(f[2]>0) chartCard(gr,{title:"Application funnel",sub:"Share moving to the next step",draw:function(b){ribbon(b,fl.map(function(l,i){return {label:l,v:f[i]};}));},
+    table:{cols:["Step","Companies","Of previous"], rows:fl.map(function(l,i){return [l,fmtInt(f[i]),i?Math.round(100*f[i]/f[i-1])+"%":""];})}});
+  else chartCard(gr,{title:"Application funnel",empty:"No cohort selected in this region yet."});
+  if(d.wp!=null){
+    var groups=[{label:"Applicants",v:d.wp}]; if(d.wc!=null) groups.push({label:"Selected",v:d.wc});
+    chartCard(gr,{title:"Women-led companies",sub:"VC-045 · each square is 1%",draw:function(b){waffles(b,groups);},legend:[["Women-led","var(--s1)"],["Other","var(--line)"]],
+      table:{cols:["Group","Women-led"], rows:groups.map(function(g){return [g.label,pct(g.v)];})}});
+  } else chartCard(gr,{title:"Women-led companies",empty:"No applications in this region yet."});
+  var title=region==="all"?"Entrepreneurs by region":"Entrepreneurs by country";
+  var sub=region==="all"?"Select a bar to drill into a region":"Choose All regions above to go back";
+  if(d.where.length) chartCard(gr,{title:title,sub:sub,draw:function(b){hbar(b,d.where,{fmt:fmtInt,aria:title,lw:region==="all"?168:112,color:"var(--s1)",onClick:region==="all"?function(r){setRegion(r.key);}:null});},
+    table:{cols:[region==="all"?"Region":"Country","Entrepreneurs"], rows:d.where.map(function(x){return [x.label,fmtInt(x.v)];})}});
+  else chartCard(gr,{title:title,empty:"No entrepreneurs supported in this region yet."});
+}
+function renderHealth(d){
+  var gh=$("#g-health"); gh.replaceChildren(); var cc=["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+  var ser=CAPTYPES.map(function(t,j){return {key:t,color:cc[j],vals:d.cap.map(function(y){return y[j];})};});
+  chartCard(gh,{title:"Follow-on capital raised by alumni",sub:"VC-021 · USD millions, by instrument",draw:function(b){colChart(b,CAPYEARS,ser,{fmt:fmtM,tick:function(v){return "$"+(+v.toFixed(2))+"M";},aria:"Follow-on capital by instrument and year"});},
+    legend:CAPTYPES.map(function(t,j){return [t,cc[j]];}),
+    table:{cols:["Year"].concat(CAPTYPES).concat(["Total"]), rows:CAPYEARS.map(function(y,i){return [y].concat(d.cap[i].map(fmtM)).concat([fmtM(d.capTot[i])]);})}});
+  var sl=["12 mo","24 mo","36 mo","48 mo"];
+  chartCard(gh,{title:"Alumni still operating",sub:"VC-029 · months after program end",draw:function(b){survChart(b,sl,d.surv,70);},
+    legend:[["VilCap alumni","var(--s1)"],["Peer reference: MassChallenge publishes 70%",null,"dash"]],
+    table:{cols:["Months after program","Still operating"], rows:sl.map(function(l,i){return [l,d.surv[i]+"%"];})}});
+}
+function renderDash(){
+  drawers=staticDrawers.slice();
+  var d=regionData(region);
+  renderPyramid(d); renderGantt(d); renderDrill(false); renderReach(d); renderHealth(d);
+}
+
+/* ---------- hero contours ---------- */
+function initContours(){
+  var c=document.getElementById("band-canvas"); if(!c||!c.getContext) return;
+  var ctx=c.getContext("2d"), band=c.parentNode, t=0, dpr=1, W=0, H=0, visible=true, raf=0, last=0;
+  function size(){var r=band.getBoundingClientRect(); dpr=Math.min(2,window.devicePixelRatio||1); W=r.width; H=r.height; c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); c.style.width=W+"px"; c.style.height=H+"px"; ctx.setTransform(dpr,0,0,dpr,0,0); draw();}
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var cx=W*(W<700?0.9:0.84), cy=H*0.4, base=Math.min(W,H)*0.07, gap=Math.max(15,Math.min(W,H)*0.042);
+    ctx.lineWidth=1;
+    for(var k=0;k<18;k++){
+      var r0=base+k*gap; ctx.beginPath();
+      for(var a=0;a<=72;a++){
+        var ang=a/72*Math.PI*2, rr=r0*(1+0.10*Math.sin(3*ang+t*0.6+k*0.35)+0.06*Math.sin(5*ang-t*0.4+k*0.22));
+        var x=cx+rr*Math.cos(ang)*1.3, y=cy+rr*Math.sin(ang);
+        if(a===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath(); ctx.strokeStyle=k===4?"rgba(254,198,115,.22)":"rgba(255,255,255,"+(0.1-k*0.004).toFixed(3)+")"; ctx.stroke();
+    }
+  }
+  function loop(ts){if(!visible){raf=0;return;} if(ts-last>45){t+=0.018; draw(); last=ts;} raf=requestAnimationFrame(loop);}
+  size(); var rs; window.addEventListener("resize",function(){clearTimeout(rs); rs=setTimeout(size,120);});
+  if(REDUCE) return;
+  if("IntersectionObserver" in window){new IntersectionObserver(function(es){visible=es[0].isIntersecting; if(visible&&!raf) raf=requestAnimationFrame(loop);}).observe(band);}
+  else raf=requestAnimationFrame(loop);
+}
+
+/* ---------- nav ---------- */
+function initNav(){
+  var links=$$("#nav a"), nav=$("#nav"), byId={}; links.forEach(function(a){byId[a.getAttribute("href").slice(1)]=a;});
+  function setOn(id){
+    links.forEach(function(a){var on=a===byId[id]; a.classList.toggle("on",on); if(on) a.setAttribute("aria-current","true"); else a.removeAttribute("aria-current");});
+    var a=byId[id]; if(!a) return; var l=a.offsetLeft, r=l+a.offsetWidth;
+    if(l<nav.scrollLeft||r>nav.scrollLeft+nav.clientWidth) nav.scrollTo({left:Math.max(0,l-24),behavior:REDUCE?"auto":"smooth"});
+  }
+  if("IntersectionObserver" in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting) setOn(e.target.id);});},{rootMargin:"-40% 0px -55% 0px"}); Object.keys(byId).forEach(function(id){var s=document.getElementById(id); if(s) io.observe(s);});}
+  setOn("overview");
+}
+
+/* ---------- boot ---------- */
+renderState(); renderEstimator(); renderFlow(); renderTrail();
+renderControls(); renderMap(); renderServices(); renderCoverage();
+renderMetricsCard(); renderLog();
+staticDrawers=drawers.slice();
+renderRegionFilter(); renderGoals(); renderDash(); initNav(); initContours();
+riseAll(".sec-head, .lessons, .est, .proof, .trail-h, .detail, .anchor, .unlock, .req-col, .log, .dash-top, .ph, .asks > div, .la-note");
+$$(".hstep").forEach(function(el,i){delay(el,i*170);});
+$("#est-total").setAttribute("data-count","");
+["#hsteps","#msgs"].forEach(function(s){watch($(s));});
+function redrawAll(){drawers.forEach(function(f){f();}); if(drillDraw) drillDraw();}
+var rt; window.addEventListener("resize",function(){clearTimeout(rt); rt=setTimeout(redrawAll,150);});
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(redrawAll);
+})();
+</script>
+
+</body>
+</html>
